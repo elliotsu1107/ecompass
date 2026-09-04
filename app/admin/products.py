@@ -1,0 +1,13 @@
+from __future__ import annotations
+
+class ProductStore:
+    def __init__(self, connection): self.connection = connection
+
+    def upsert(self, value):
+        cols = ["store_id", "product_id", "name", "category_id", "operator_id"]
+        self.connection.execute("INSERT INTO products (store_id,product_id,name,category_id,operator_id) VALUES (?,?,?,?,?) ON CONFLICT(store_id,product_id) DO UPDATE SET name=excluded.name,category_id=excluded.category_id,operator_id=excluded.operator_id", [value.get(c) for c in cols])
+        self.connection.commit()
+
+    def list(self):
+        rows = self.connection.execute("SELECT store_id,product_id,name,category_id,operator_id FROM products ORDER BY store_id,product_id").fetchall()
+        return [dict(row) if hasattr(row, "keys") else dict(zip(("store_id","product_id","name","category_id","operator_id"), row)) for row in rows]

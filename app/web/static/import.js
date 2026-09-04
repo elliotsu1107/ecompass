@@ -1,0 +1,1 @@
+const form=document.querySelector('#import-form');if(form){form.addEventListener('submit',async e=>{e.preventDefault();const r=await fetch('/api/import/upload',{method:'POST',body:new FormData(form)});document.querySelector('#result').textContent=JSON.stringify(await r.json(),null,2);});}

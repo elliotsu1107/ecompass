@@ -1,0 +1,10 @@
+# 隐私与运行数据，一律不入库
+docs/
+docs/exp/
+data/
+.worktrees/
+.superpowers/
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
