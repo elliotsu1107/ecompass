@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -46,6 +46,23 @@ def logout():
 @router.get("/admin", response_class=HTMLResponse)
 def admin_page(request: Request, _admin: str = Depends(admin_required)):
     return templates.TemplateResponse(request, "admin.html")
+
+
+@router.post("/api/admin/reset")
+def reset_business_data(request: Request, payload: dict, _admin: str = Depends(admin_required)):
+    from app.admin.reset import ClearConfirmationError, clear_business_data
+
+    connection = _connection(request)
+    try:
+        return clear_business_data(
+            connection,
+            Path(getattr(request.app.state, "data_dir", Path("data"))),
+            payload.get("confirmation"),
+        )
+    except ClearConfirmationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        connection.close()
 
 
 @router.get("/api/admin/{table}")
