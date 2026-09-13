@@ -208,7 +208,17 @@ D:\Dev\ecompass-backup\data
 - 结算销售额、推广费比和对账告警
 - 店铺、类目、运营看板接口
 
-## 开机启动
+## 便携版构建
+
+在 Windows PowerShell 中执行：
+
+```powershell
+.venv\Scripts\python.exe -m pip install -r requirements-build.txt
+.\build_portable.ps1
+```
+
+构建结果为 `dist/ecompass-portable/` 和 `dist/ecompass-portable.zip`。便携包包含 `ecompass.exe`、`start.bat`、`backup.bat`、`README.txt` 和空的 `data/imports/`；模板与静态资源已嵌入程序目录，运行数据不会打入包。启动便携版时，数据库、密钥和导入文件均保存在便携包根目录的 `data/`。
+
 
 确认手动启动和局域网访问正常后，可以使用管理员 PowerShell 创建登录时启动任务：
 

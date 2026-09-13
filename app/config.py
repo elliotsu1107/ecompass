@@ -5,6 +5,15 @@ from pathlib import Path
 
 def project_root() -> Path:
     if getattr(sys, "frozen", False):
+        internal_root = Path(sys.executable).resolve().parent / "_internal"
+        if internal_root.exists():
+            return internal_root
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parents[1]
+
+
+def data_root() -> Path:
+    if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[1]
 
@@ -17,7 +26,7 @@ class Config:
 
     def __post_init__(self) -> None:
         if self.data_dir is None:
-            self.data_dir = project_root() / "data"
+            self.data_dir = data_root() / "data"
 
     @property
     def archive_dir(self) -> Path:
