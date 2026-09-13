@@ -1,4 +1,7 @@
+import os
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,7 +30,10 @@ def test_portable_package_contains_runtime_files_and_empty_import_directory():
 
 
 def test_built_portable_package_contains_runtime_files_and_resources():
-    package = ROOT / "dist" / "ecompass-portable"
+    package_value = os.environ.get("PORTABLE_PACKAGE_DIR")
+    if not package_value:
+        pytest.skip("set PORTABLE_PACKAGE_DIR to run built-package integration checks")
+    package = Path(package_value)
     assert (package / "ecompass.exe").exists()
     assert (package / "start.bat").exists()
     assert (package / "backup.bat").exists()

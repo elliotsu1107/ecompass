@@ -213,6 +213,7 @@ D:\Dev\ecompass-backup\data
 在 Windows PowerShell 中执行：
 
 ```powershell
+.venv\Scripts\python.exe -m pip install -r requirements.txt
 .venv\Scripts\python.exe -m pip install -r requirements-build.txt
 .\build_portable.ps1
 ```

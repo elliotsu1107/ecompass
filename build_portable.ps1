@@ -7,7 +7,7 @@ if (-not (Test-Path $python)) {
     $pythonCommand = Get-Command py -ErrorAction SilentlyContinue
     if ($pythonCommand) { $python = $pythonCommand.Source }
 }
-if (-not $python) { throw "Python was not found." }
+if (-not (Test-Path $python)) { throw "Python was not found. Create .venv and install requirements first." }
 
 $buildRoot = Join-Path $Root "build\portable"
 $distRoot = Join-Path $Root "dist"
