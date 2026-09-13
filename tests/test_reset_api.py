@@ -16,6 +16,21 @@ def test_reset_api_requires_admin(client):
     assert response.status_code == 401
 
 
+def test_reset_api_get_is_not_a_dimension_endpoint(client, monkeypatch):
+    headers = admin_headers(client)
+
+    def unexpected_dimension_list(*args, **kwargs):
+        raise AssertionError("GET /api/admin/reset entered list_dimension")
+
+    monkeypatch.setattr(
+        "app.web.routes_admin.DimensionStore.list", unexpected_dimension_list
+    )
+
+    response = client.get("/api/admin/reset", headers=headers)
+
+    assert response.status_code == 405
+
+
 def test_reset_api_rejects_confirmation_other_than_clear(client):
     headers = admin_headers(client)
 

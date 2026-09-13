@@ -65,6 +65,11 @@ def reset_business_data(request: Request, payload: dict, _admin: str = Depends(a
         connection.close()
 
 
+@router.get("/api/admin/reset")
+def reset_business_data_get(_admin: str = Depends(admin_required)):
+    raise HTTPException(status_code=405, detail="Method Not Allowed")
+
+
 @router.get("/api/admin/{table}")
 def list_dimension(table: str, request: Request, _admin: str = Depends(admin_required)):
     return DimensionStore(_connection(request)).list(table)
