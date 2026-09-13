@@ -218,7 +218,7 @@ D:\Dev\ecompass-backup\data
 .\build_portable.ps1
 ```
 
-构建结果为 `dist/ecompass-portable/` 和 `dist/ecompass-portable.zip`。便携包包含 `ecompass.exe`、`start.bat`、`backup.bat`、`README.txt` 和空的 `data/imports/`；模板与静态资源已嵌入程序目录，运行数据不会打入包。启动便携版时，数据库、密钥和导入文件均保存在便携包根目录的 `data/`。
+构建结果为 `dist/ecompass-portable/` 和 `dist/ecompass-portable.zip`。便携包包含 `ecompass.exe`、`start.bat`、`backup.bat` 和 `README.txt`；模板与静态资源已嵌入程序目录，运行数据不会打入包。首次启动便携版时，程序会在便携包根目录创建 `data/`，数据库、密钥和导入文件均保存在其中。
 
 
 确认手动启动和局域网访问正常后，可以使用管理员 PowerShell 创建登录时启动任务：

@@ -26,7 +26,8 @@ def test_portable_package_contains_runtime_files_and_empty_import_directory():
     assert "start.bat" in script
     assert "backup.bat" in script
     assert "README.txt" in script
-    assert "data\\imports" in script or "data/imports" in script
+    readme = (ROOT / "portable" / "README.txt").read_text(encoding="utf-8")
+    assert "自动创建 data/" in readme
 
 
 def test_built_portable_package_contains_runtime_files_and_resources():
@@ -38,7 +39,7 @@ def test_built_portable_package_contains_runtime_files_and_resources():
     assert (package / "start.bat").exists()
     assert (package / "backup.bat").exists()
     assert (package / "README.txt").exists()
-    assert (package / "data" / "imports").is_dir()
+    assert not (package / "data").exists()
     assert list(package.rglob("templates/*.html"))
     assert list(package.rglob("static/*"))
 
