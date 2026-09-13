@@ -1,5 +1,16 @@
 import sqlite3
 
+from fastapi.testclient import TestClient
+
+from app import create_app
+from app.config import Config
+
+
+def test_health_still_initializes_database(tmp_path):
+    app = create_app(Config(data_dir=tmp_path / "data"))
+
+    assert TestClient(app).get("/api/health").json() == {"ok": True}
+
 
 def test_health_endpoint_initializes_database(client, db_path):
     response = client.get("/api/health")

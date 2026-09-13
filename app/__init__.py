@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from .config import Config
+from .config import Config, project_root
 from .db import connect_db, init_db
 
 
@@ -16,7 +16,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     app.state.data_dir = settings.data_dir
     app.state.db = lambda: connect_db(settings.db_path)
     app.state.admins = {"admin": "ecompass123"}
-    static_dir = settings.data_dir.parent / "app" / "web" / "static"
+    static_dir = project_root() / "app" / "web" / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
