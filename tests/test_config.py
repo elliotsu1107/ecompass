@@ -38,3 +38,23 @@ def test_project_root_uses_pyinstaller_internal_resource_root(tmp_path, monkeypa
 
     assert project_root() == tmp_path / "_internal"
     assert data_root() == tmp_path
+
+
+def test_config_reads_host_and_port_from_environment(monkeypatch):
+    monkeypatch.setenv("ECOMPASS_HOST", "127.0.0.1")
+    monkeypatch.setenv("ECOMPASS_PORT", "8101")
+
+    settings = Config()
+
+    assert settings.host == "127.0.0.1"
+    assert settings.port == 8101
+
+
+def test_config_ignores_invalid_port_environment(monkeypatch):
+    monkeypatch.setenv("ECOMPASS_PORT", "abc")
+
+    assert Config().port == 8000
+
+    monkeypatch.setenv("ECOMPASS_PORT", "70000")
+
+    assert Config().port == 8000
