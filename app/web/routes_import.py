@@ -24,6 +24,26 @@ def import_page(request: Request, _admin: str = Depends(admin_required)):
     return templates.TemplateResponse(request, "import.html")
 
 
+@router.get("/api/import/logs")
+def import_logs(request: Request, limit: int = 20, _admin: str = Depends(admin_required)):
+    connection = _db(request)
+    cursor = connection.execute(
+        "SELECT created_at, file_type, file_name, data_date, inserted_rows, updated_rows,"
+        " skipped_rows, unmatched_rows, archive_path FROM import_logs"
+        " ORDER BY created_at DESC, id DESC LIMIT ?",
+        (max(1, min(limit, 200)),),
+    )
+    rows = cursor.fetchall()
+    connection.close()
+    columns = [description[0] for description in cursor.description]
+    return {
+        "items": [
+            dict(row) if hasattr(row, "keys") else dict(zip(columns, row))
+            for row in rows
+        ]
+    }
+
+
 @router.post("/api/import/upload")
 async def upload(request: Request, file: UploadFile = File(...), store_id: str = Form(...), file_type: str = Form(...), _admin: str = Depends(admin_required)):
     data = await file.read()

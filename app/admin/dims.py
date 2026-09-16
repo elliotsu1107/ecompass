@@ -1,28 +1,52 @@
 from __future__ import annotations
 
+import sqlite3
 from typing import Any
 
-_ALLOWED = {"stores", "operators", "categories"}
+_FIELDS: dict[str, tuple[str, ...]] = {
+    "stores": ("name", "platform"),
+    "operators": ("name",),
+    "categories": ("name", "operator_id"),
+}
+
+
+class DuplicateNameError(ValueError):
+    pass
 
 
 class DimensionStore:
     def __init__(self, connection):
         self.connection = connection
 
-    def upsert(self, table: str, values: dict[str, Any]) -> None:
-        if table not in _ALLOWED or not values:
-            raise ValueError("invalid dimension")
-        columns = list(values)
-        placeholders = ", ".join("?" for _ in columns)
-        updates = ", ".join(f"{column}=excluded.{column}" for column in columns if column != "id")
-        sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders}) ON CONFLICT(id) DO UPDATE SET {updates}"
-        self.connection.execute(sql, [values[column] for column in columns])
+    def create(self, table: str, values: dict[str, Any]) -> int:
+        fields = _FIELDS.get(table)
+        if fields is None:
+            raise ValueError("不支持的资料类型")
+        payload = {field: values.get(field) for field in fields}
+        missing = [field for field, value in payload.items() if value in (None, "")]
+        if missing:
+            raise ValueError(f"缺少必填项：{'、'.join(missing)}")
+        sql = (
+            f"INSERT INTO {table} ({','.join(payload)})"
+            f" VALUES ({','.join('?' for _ in payload)})"
+        )
+        try:
+            cursor = self.connection.execute(sql, list(payload.values()))
+        except sqlite3.IntegrityError as exc:
+            self.connection.rollback()
+            if "UNIQUE" in str(exc).upper():
+                raise DuplicateNameError(f"名称已存在：{payload['name']}") from exc
+            raise ValueError("关联的资料不存在，请先创建运营人员") from exc
         self.connection.commit()
+        return int(cursor.lastrowid)
 
     def list(self, table: str) -> list[dict[str, Any]]:
-        if table not in _ALLOWED:
-            raise ValueError("invalid dimension")
-        cursor = self.connection.execute(f"SELECT * FROM {table} ORDER BY id")
-        rows = cursor.fetchall()
-        columns = [description[0] for description in cursor.description]
-        return [dict(row) if hasattr(row, "keys") else dict(zip(columns, row)) for row in rows]
+        if table not in _FIELDS:
+            raise ValueError("不支持的资料类型")
+        columns = ", ".join(("id",) + _FIELDS[table])
+        cursor = self.connection.execute(f"SELECT {columns} FROM {table} ORDER BY id")
+        names = [description[0] for description in cursor.description]
+        return [
+            dict(row) if hasattr(row, "keys") else dict(zip(names, row))
+            for row in cursor.fetchall()
+        ]

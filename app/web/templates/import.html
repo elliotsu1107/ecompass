@@ -1,1 +1,59 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>导入</title></head><body><main><h1>数据导入</h1><form id="import-form"><input name="store_id" placeholder="店铺" required><select name="file_type"><option value="product">商品</option><option value="ad">推广</option></select><input type="file" name="file" required><button>上传</button></form><pre id="result"></pre></main><script src="/static/import.js"></script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>导入数据 · 电商经营罗盘</title>
+  <style>
+    body { font-family: system-ui, "Microsoft YaHei", sans-serif; margin: 0; color: #17202a; background: #f5f7f9; }
+    main { max-width: 900px; margin: 0 auto; padding: 28px 18px 60px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    nav { margin: 0 0 18px; display: flex; gap: 16px; }
+    nav a { color: #145da0; text-decoration: none; }
+    section { background: #fff; border: 1px solid #d8dee4; border-radius: 8px; padding: 18px 20px; margin-top: 18px; }
+    label { display: block; font-weight: 600; margin: 12px 0 4px; font-size: 14px; }
+    input, select { box-sizing: border-box; padding: 8px 10px; border: 1px solid #aab4be; border-radius: 4px; width: 100%; max-width: 360px; font-size: 14px; }
+    button { margin-top: 16px; padding: 9px 14px; border: 0; border-radius: 4px; background: #145da0; color: #fff; cursor: pointer; font-size: 14px; }
+    button:disabled { opacity: .6; cursor: wait; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    th, td { text-align: left; padding: 7px 9px; border-bottom: 1px solid #e6ebf0; }
+    th { color: #5b6b7a; background: #fafbfc; font-weight: 600; }
+    .hint { color: #5b6b7a; font-size: 13px; margin: 0 0 10px; }
+    .message { margin-top: 14px; font-size: 14px; white-space: pre-wrap; }
+    .error { color: #b42318; }
+    .success { color: #176b3a; }
+    .empty { color: #8593a1; font-size: 14px; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>数据导入</h1>
+    <nav>
+      <a href="/">运营看板</a>
+      <a href="/admin">管理后台</a>
+    </nav>
+    <section>
+      <p class="hint">先到管理后台建立店铺和商品清单，再导入报表。商品报表和推广报表按商品 ID 匹配类目与运营。</p>
+      <form id="import-form">
+        <label for="store-select">店铺</label>
+        <select id="store-select" name="store_id" required></select>
+        <label for="file-type">报表类型</label>
+        <select id="file-type" name="file_type">
+          <option value="store">店铺数据</option>
+          <option value="product">商品数据</option>
+          <option value="ad">推广数据</option>
+        </select>
+        <label for="file-input">报表文件</label>
+        <input id="file-input" type="file" name="file" required>
+        <button type="submit">上传并导入</button>
+      </form>
+      <div id="result" class="message" role="status" aria-live="polite"></div>
+    </section>
+    <section>
+      <h2>最近导入记录</h2>
+      <div id="log-list"></div>
+    </section>
+  </main>
+  <script src="/static/import.js"></script>
+</body>
+</html>
