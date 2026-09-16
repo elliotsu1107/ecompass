@@ -4,14 +4,14 @@ import re
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Cookie, Depends, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.admin.dims import DimensionStore, DuplicateNameError
 from app.admin.products import ProductStore
 from app.admin.targets import TargetStore
-from app.auth import admin_required, authenticate_admin
+from app.auth import admin_required, authenticate_admin, require_admin
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -66,7 +66,10 @@ def logout():
 
 
 @router.get("/admin", response_class=HTMLResponse)
-def admin_page(request: Request, _admin: str = Depends(admin_required)):
+def admin_page(request: Request, admin_session: str | None = Cookie(default=None)):
+    admins = getattr(request.app.state, "admins", {"admin": "admin"})
+    if not require_admin(admin_session, admins):
+        return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(request, "admin.html")
 
 

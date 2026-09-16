@@ -310,6 +310,48 @@ bindForm('#product-form', (data) => api('/api/admin/products', {
   }),
 }));
 
+const productImportForm = document.querySelector('#product-import-form');
+const productImportResult = document.querySelector('#product-import-result');
+
+if (productImportForm && productImportResult) {
+  productImportForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = productImportForm.querySelector('button');
+    button.disabled = true;
+    productImportResult.className = 'message';
+    productImportResult.textContent = '正在导入商品清单，请稍候...';
+    try {
+      const response = await fetch('/api/import/products-list', {
+        method: 'POST',
+        body: new FormData(productImportForm),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.detail || '导入失败');
+      const stats = body.stats || {};
+      const lines = [
+        `导入完成：${body.file_name}`,
+        `识别表头行：第 ${body.header_row} 行，读取 ${body.rows} 行`,
+        `新增商品 ${stats['新增'] || 0}，更新商品 ${stats['更新'] || 0}，跳过 ${stats['跳过'] || 0}`,
+        `自动新建运营 ${stats['新建运营'] || 0}，自动新建类目 ${stats['新建类目'] || 0}`,
+      ];
+      if (stats['未匹配店铺']) {
+        lines.push(`未匹配店铺 ${stats['未匹配店铺']} 行：${(stats['未匹配店铺名称'] || []).join('、')}`);
+        lines.push('请先在第 2 步建立这些店铺，再重新导入。');
+      }
+      productImportResult.className = 'message success';
+      productImportResult.textContent = lines.join('\n');
+      productImportForm.reset();
+      await loadDimensions();
+      await loadTargets();
+    } catch (error) {
+      productImportResult.className = 'message error';
+      productImportResult.textContent = `导入失败：${error.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 const monthInput = document.querySelector('#target-month');
 if (monthInput) {
   const now = new Date();

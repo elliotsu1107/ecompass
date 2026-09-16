@@ -98,7 +98,14 @@
 
     <section data-section="products">
       <h2>4. 商品</h2>
-      <p class="hint">商品报表和推广报表通过商品 ID 匹配这里的类目与运营，请先建立商品清单。</p>
+      <p class="hint">商品报表和推广报表通过商品 ID 匹配这里的类目与运营。可逐个新增，也可用 Excel / CSV 批量导入。</p>
+      <form id="product-import-form">
+        <label for="product-import-file">批量导入商品清单（需包含：店铺名称、商品ID、商品名称、类目、运营负责人）</label>
+        <input id="product-import-file" type="file" name="file" accept=".xlsx,.xls,.csv" required>
+        <button type="submit">导入商品清单</button>
+      </form>
+      <div id="product-import-result" class="message" role="status" aria-live="polite"></div>
+      <p class="hint">注：清单里的店铺必须已经在第 2 步建立；类目和运营不存在时会自动创建。</p>
       <form id="product-form" class="grid">
         <div>
           <label for="product-store">店铺</label>
