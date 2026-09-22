@@ -150,6 +150,28 @@ def create_product(values: dict, request: Request, _admin: str = Depends(admin_r
         connection.close()
     return {"ok": True}
 
+@router.put("/api/admin/products/{store_id}/{product_id}")
+def update_product(store_id: int, product_id: str, values: dict, request: Request, _admin: str = Depends(admin_required)):
+    connection = _connection(request)
+    try:
+        ProductStore(connection).update(store_id, product_id, values)
+    except (ValueError, LookupError) as exc:
+        raise HTTPException(status_code=400 if isinstance(exc, ValueError) else 404, detail=str(exc)) from exc
+    finally:
+        connection.close()
+    return {"ok": True}
+
+@router.delete("/api/admin/products/{store_id}/{product_id}")
+def delete_product(store_id: int, product_id: str, request: Request, _admin: str = Depends(admin_required)):
+    connection = _connection(request)
+    try:
+        ProductStore(connection).delete(store_id, product_id)
+    except (LookupError, RuntimeError) as exc:
+        raise HTTPException(status_code=404 if isinstance(exc, LookupError) else 409, detail=str(exc)) from exc
+    finally:
+        connection.close()
+    return {"ok": True}
+
 
 @router.get("/api/admin/{table}")
 def list_dimension(table: str, request: Request, _admin: str = Depends(admin_required)):
@@ -174,3 +196,33 @@ def create_dimension(table: str, values: dict, request: Request, _admin: str = D
     finally:
         connection.close()
     return {"ok": True, "id": item_id}
+
+@router.put("/api/admin/{table}/{item_id}")
+def update_dimension(table: str, item_id: int, values: dict, request: Request, _admin: str = Depends(admin_required)):
+    if table not in DIMENSION_TABLES:
+        raise HTTPException(status_code=404, detail="不支持的资料类型")
+    connection = _connection(request)
+    try:
+        DimensionStore(connection).update(table, item_id, values)
+    except (DuplicateNameError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        connection.close()
+    return {"ok": True}
+
+@router.delete("/api/admin/{table}/{item_id}")
+def delete_dimension(table: str, item_id: int, request: Request, _admin: str = Depends(admin_required)):
+    if table not in DIMENSION_TABLES:
+        raise HTTPException(status_code=404, detail="不支持的资料类型")
+    connection = _connection(request)
+    try:
+        DimensionStore(connection).delete(table, item_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        connection.close()
+    return {"ok": True}

@@ -240,6 +240,25 @@ D:\Dev\ecompass-backup\data
 
 构建结果为 `dist/ecompass-portable/` 和 `dist/ecompass-portable.zip`。便携包包含 `ecompass.exe`、`start.bat`、`backup.bat` 和 `README.txt`；模板与静态资源已嵌入程序目录，运行数据不会打入包。首次启动便携版时，程序会在便携包根目录创建 `data/`，数据库、密钥和导入文件均保存在其中。
 
+## 便携版升级
+
+升级时不需要重新录入数据，按以下步骤操作：
+
+1. 退出旧版本 `ecompass.exe`。
+2. 先复制整个旧目录作为备份，或至少备份 `data/`，包括 `data/ecompass.db`、`data/secret.key` 和 `data/imports/`。
+3. 解压新的 `ecompass-portable.zip`。
+4. 将新包中的程序文件复制到旧便携版目录并覆盖同名文件。
+5. 保留旧目录中的 `data/`，不要用新包中的空 `data/` 覆盖；也不要覆盖旧的 `data/secret.key`。
+6. 双击新的 `start.bat` 启动并检查看板与历史数据。
+
+推荐先执行：
+
+```powershell
+Copy-Item D:\Tools\ecompass D:\Tools\ecompass-backup-0.1.0 -Recurse
+```
+
+便携版升级本质上是“覆盖程序文件、保留 data 数据目录”。不要只复制 `ecompass.exe`，也不要删除旧目录的 `data/`。
+
 
 确认手动启动和局域网访问正常后，可以使用管理员 PowerShell 创建登录时启动任务：
 

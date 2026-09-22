@@ -11,7 +11,7 @@ ALIASES = {
     "date": ("日期", "统计日期", "date"), "product_id": ("商品ID", "商品id", "主体ID", "product_id"),
     "product_name": ("商品名称", "主体名称", "宝贝名称", "product_name"), "pay_amount": ("支付金额", "支付金额(元)", "pay_amount"),
     "refund_amount": ("退款金额", "成功退款金额", "refund_amount"), "pay_qty": ("支付件数", "支付数量", "pay_qty"),
-    "visitors": ("访客数", "visitors"), "buyers": ("支付买家数", "买家数", "buyers"),
+    "visitors": ("访客数", "商品访客数", "店铺访客数", "visitors"), "buyers": ("支付买家数", "买家数", "buyers"),
     "cost": ("花费", "推广花费", "cost"), "ad_gmv": ("总成交金额", "推广成交金额", "ad_gmv"), "ad_cost": ("全站推广花费", "推广花费", "ad_cost"),
 }
 

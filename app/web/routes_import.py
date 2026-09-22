@@ -54,7 +54,10 @@ def import_logs(request: Request, limit: int = 20, _admin: str = Depends(admin_r
 
 @router.post("/api/import/upload")
 async def upload(request: Request, file: UploadFile = File(...), store_id: str = Form(...), file_type: str = Form(...), _admin: str = Depends(admin_required)):
-    data = await file.read()
+    try:
+        data = await file.read()
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"报表读取失败：{exc}") from exc
     root = Path(getattr(request.app.state, "data_dir", Path("data"))) / "imports" / store_id
     root.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256(data).hexdigest()
@@ -63,20 +66,27 @@ async def upload(request: Request, file: UploadFile = File(...), store_id: str =
     path.write_bytes(data)
     from app.imports.ingester import ingest
     from app.imports.parsers import read_table
-    table = read_table(path)
-    connection = _db(request)
-    if file_type == "store":
-        stats = ingest(connection, store_id, store_rows=table.rows)
-    elif file_type == "product":
-        stats = ingest(connection, store_id, product_rows=table.rows)
-    elif file_type == "ad":
-        stats = ingest(connection, store_id, ad_rows=table.rows)
-    else:
-        return {"error": "未知报表类型，应为 store、product 或 ad"}
-    connection.execute("INSERT INTO import_logs (created_at,file_type,file_name,file_sha256,data_date,inserted_rows,updated_rows,skipped_rows,unmatched_rows,archive_path) VALUES (?,?,?,?,?,?,?,?,?,?)", (datetime.now(timezone.utc).isoformat(), file_type, file.filename, digest, table.rows[0].get("日期", table.rows[0].get("统计日期", "")) if table.rows else "", stats["新增"], stats["更新"], stats["跳过"], stats["未匹配"], str(path)))
-    connection.commit()
-    connection.close()
-    return {"file_name": file.filename, "file_sha256": digest, "store_id": store_id, "file_type": file_type, "path": str(path), "header_row": table.header_row + 1, "rows": len(table.rows), "stats": stats}
+    try:
+        table = read_table(path)
+        connection = _db(request)
+        try:
+            if file_type == "store":
+                stats = ingest(connection, store_id, store_rows=table.rows)
+            elif file_type == "product":
+                stats = ingest(connection, store_id, product_rows=table.rows)
+            elif file_type == "ad":
+                stats = ingest(connection, store_id, ad_rows=table.rows)
+            else:
+                raise HTTPException(status_code=400, detail="未知报表类型，应为 store、product 或 ad")
+            connection.execute("INSERT INTO import_logs (created_at,file_type,file_name,file_sha256,data_date,inserted_rows,updated_rows,skipped_rows,unmatched_rows,archive_path) VALUES (?,?,?,?,?,?,?,?,?,?)", (datetime.now(timezone.utc).isoformat(), file_type, file.filename, digest, table.rows[0].get("日期", table.rows[0].get("统计日期", "")) if table.rows else "", stats["新增"], stats["更新"], stats["跳过"], stats["未匹配"], str(path)))
+            connection.commit()
+        finally:
+            connection.close()
+        return {"file_name": file.filename, "file_sha256": digest, "store_id": store_id, "file_type": file_type, "path": str(path), "header_row": table.header_row + 1, "rows": len(table.rows), "stats": stats}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"报表导入失败：{exc}") from exc
 
 
 @router.post("/api/import/products-list")

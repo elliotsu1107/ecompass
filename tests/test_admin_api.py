@@ -149,6 +149,29 @@ def test_admin_creates_product_for_category_matching(client):
     }]
 
 
+def test_admin_can_edit_and_delete_dimensions_and_products(client):
+    operator_id = create_dimension(client, "operators", {"name": "小王"})
+    store_id = create_dimension(client, "stores", {"name": "A店铺", "platform": "淘宝"})
+    category_id = create_dimension(client, "categories", {"name": "咖啡", "operator_id": operator_id})
+    headers = admin_headers(client)
+    client.post("/api/admin/products", json={"store_id": store_id, "product_id": "P1", "name": "旧", "category_id": category_id, "operator_id": operator_id}, headers=headers)
+    assert client.put(f"/api/admin/operators/{operator_id}", json={"name": "小李"}, headers=headers).status_code == 200
+    assert client.put(f"/api/admin/stores/{store_id}", json={"name": "B店铺", "platform": "天猫"}, headers=headers).status_code == 200
+    assert client.put(f"/api/admin/categories/{category_id}", json={"name": "杯具", "operator_id": operator_id}, headers=headers).status_code == 200
+    assert client.put(f"/api/admin/products/{store_id}/P1", json={"name": "新", "category_id": category_id, "operator_id": operator_id}, headers=headers).status_code == 200
+    assert client.delete(f"/api/admin/categories/{category_id}", headers=headers).status_code == 409
+    assert client.delete(f"/api/admin/operators/{operator_id}", headers=headers).status_code == 409
+    assert client.delete(f"/api/admin/products/{store_id}/P1", headers=headers).status_code == 200
+    assert client.delete(f"/api/admin/categories/{category_id}", headers=headers).status_code == 200
+    assert client.delete(f"/api/admin/operators/{operator_id}", headers=headers).status_code == 200
+
+
+def test_admin_delete_unreferenced_dimension(client):
+    operator_id = create_dimension(client, "operators", {"name": "小王"})
+    headers = admin_headers(client)
+    assert client.delete(f"/api/admin/operators/{operator_id}", headers=headers).status_code == 200
+
+
 def test_import_page_offers_store_report_and_store_list(client):
     headers = admin_headers(client)
     response = client.get("/import", headers=headers)

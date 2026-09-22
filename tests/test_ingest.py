@@ -51,3 +51,11 @@ def test_ingest_upserts_store_daily_report():
     result = ingest(connection, "A", store_rows=[{"统计日期": "2026-01-02", "支付金额": "100", "成功退款金额": "10", "全站推广花费": "5", "访客数": "20", "支付买家数": "3"}])
     assert result == {"新增": 1, "更新": 0, "跳过": 0, "未匹配": 0}
     assert connection.execute("SELECT pay_amount, refund_amount, ad_cost FROM fact_store_daily").fetchone() == (100.0, 10.0, 5.0)
+
+
+def test_ingest_accepts_real_product_report_metric_headers():
+    connection = _db()
+    result = ingest(connection, "A", product_rows=[{"统计日期": "2026-09-01", "商品ID": "p1", "商品名称": "咖啡", "支付金额": 12, "支付件数": 2, "商品访客数": 30, "支付买家数": 3, "成功退款金额": 1}])
+    assert result["新增"] == 1
+    row = connection.execute("SELECT pay_amount, refund_amount, pay_qty, visitors, buyers FROM fact_product_daily").fetchone()
+    assert tuple(row) == (12.0, 1.0, 2, 30, 3)

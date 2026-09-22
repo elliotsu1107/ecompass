@@ -23,6 +23,7 @@
     form.grid button { margin-top: 12px; }
     button { padding: 9px 14px; border: 0; border-radius: 4px; background: #145da0; color: #fff; cursor: pointer; font-size: 14px; }
     button:hover { background: #114d85; }
+    button.danger { background: #b42318; margin-left: 6px; }
     button:disabled { opacity: .6; cursor: wait; }
     table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
     th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e6ebf0; vertical-align: middle; }
@@ -36,6 +37,13 @@
     .danger-zone button { background: #b42318; }
     .scope { margin: 8px 0 16px; padding-left: 20px; columns: 2; font-size: 14px; }
     .group-title { margin-top: 22px; font-size: 15px; font-weight: 600; }
+    .tabs { display:flex; gap:6px; flex-wrap:wrap; margin:16px 0 8px; border-bottom:1px solid #d8dee4; }
+    .tab { background:#eef2f6; color:#145da0; border:1px solid #cbd5e1; border-bottom:0; border-radius:6px 6px 0 0; padding:9px 14px; cursor:pointer; }
+    .tab.active { background:#145da0; color:#fff; }
+    section[data-section].is-hidden { display:none; }
+    .product-store-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0; }
+    .product-store-tab { background:#f0f4f8; color:#145da0; border:1px solid #cbd5e1; padding:6px 10px; border-radius:4px; cursor:pointer; }
+    .product-store-tab.active { background:#145da0; color:#fff; }
     @media (max-width: 640px) { .scope { columns: 1; } table { font-size: 13px; } }
   </style>
 </head>
@@ -48,6 +56,14 @@
       <form method="post" action="/logout"><button type="submit" class="linkish">退出登录</button></form>
     </nav>
     <p id="global-message" class="message" role="status" aria-live="polite"></p>
+    <div class="tabs" role="tablist" aria-label="后台模块">
+      <button class="tab active" type="button" data-tab="operators">运营人员</button>
+      <button class="tab" type="button" data-tab="stores">店铺</button>
+      <button class="tab" type="button" data-tab="categories">类目</button>
+      <button class="tab" type="button" data-tab="products">商品</button>
+      <button class="tab" type="button" data-tab="targets">月度目标</button>
+      <button class="tab" type="button" data-tab="reset">数据清空</button>
+    </div>
 
     <section data-section="operators">
       <h2>1. 运营人员</h2>
