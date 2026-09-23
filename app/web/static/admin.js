@@ -104,17 +104,36 @@ function actionButton(label, handler, kind = '') {
 
 async function removeDimension(table, item) {
   if (!window.confirm(`确定删除${item.name}吗？`)) return;
-  await api(`/api/admin/${table}/${item.id}`, { method: 'DELETE' });
-  await loadDimensions(); await loadTargets(); notify('删除成功');
+  try {
+    await api(`/api/admin/${table}/${item.id}`, { method: 'DELETE' });
+    await loadDimensions();
+    await loadTargets();
+    notify('删除成功');
+  } catch (error) {
+    notify(`删除失败：${error.message}`, 'error');
+  }
 }
 
 async function editDimension(table, item) {
-  const name = window.prompt('名称', item.name); if (name === null) return;
-  const values = { name: name.trim() }; if (!values.name) return notify('名称不能为空', 'error');
+  const name = window.prompt('名称', item.name);
+  if (name === null) return;
+  const values = { name: name.trim() };
+  if (!values.name) return notify('名称不能为空', 'error');
   if (table === 'stores') values.platform = window.prompt('平台', item.platform) || item.platform;
-  if (table === 'categories') values.operator_id = Number(window.prompt('负责运营编号', item.operator_id) || item.operator_id);
-  await api(`/api/admin/${table}/${item.id}`, { method: 'PUT', body: JSON.stringify(values) });
-  await loadDimensions(); await loadTargets(); notify('修改成功');
+  if (table === 'categories') {
+    const operators = state.operators.map((operator) => `${operator.id}: ${operator.name}`).join('\n');
+    const operatorId = window.prompt(`负责运营编号：\n${operators}`, item.operator_id);
+    if (operatorId === null) return;
+    values.operator_id = Number(operatorId);
+  }
+  try {
+    await api(`/api/admin/${table}/${item.id}`, { method: 'PUT', body: JSON.stringify(values) });
+    await loadDimensions();
+    await loadTargets();
+    notify('修改成功');
+  } catch (error) {
+    notify(`修改失败：${error.message}`, 'error');
+  }
 }
 
 function renderDimensionTable(container, headers, rows, table) {
@@ -149,35 +168,86 @@ function renderProductTabs() {
   const container = document.querySelector('#product-list');
   if (!container) return;
   container.textContent = '';
-  if (!state.products.length) return emptyNote(container, '暂无数据');
+  if (!state.stores.length) return emptyNote(container, '请先建立店铺');
   const tabs = document.createElement('div');
   tabs.className = 'product-store-tabs';
   const tableBox = document.createElement('div');
-  const stores = state.stores.filter((store) => state.products.some((item) => String(item.store_id) === String(store.id)));
   const renderStore = (storeId) => {
     const rows = state.products.filter((item) => String(item.store_id) === String(storeId));
-    tableBox.textContent = ''; if (!rows.length) return emptyNote(tableBox, '暂无数据');
-    const table = document.createElement('table');
-    table.innerHTML = '<thead><tr><th>商品 ID</th><th>商品名称</th><th>店铺</th><th>类目</th><th>运营</th><th>操作</th></tr></thead>';
-    const body = document.createElement('tbody');
-    rows.forEach((item) => {
-      const tr = document.createElement('tr');
-      [item.product_id, item.name, storeName(item.store_id), categoryName(item.category_id), operatorName(item.operator_id)].forEach((value) => tr.append(cell(value)));
-      const actions = document.createElement('td');
-      actions.append(actionButton('编辑', async () => { const name = window.prompt('商品名称', item.name); if (name === null) return; await api(`/api/admin/products/${item.store_id}/${encodeURIComponent(item.product_id)}`, { method: 'PUT', body: JSON.stringify({ name: name.trim(), category_id: item.category_id, operator_id: item.operator_id }) }); await loadDimensions(); notify('修改成功'); }), actionButton('删除', async () => { if (!window.confirm(`确定删除商品 ${item.product_id} 吗？`)) return; await api(`/api/admin/products/${item.store_id}/${encodeURIComponent(item.product_id)}`, { method: 'DELETE' }); await loadDimensions(); notify('删除成功'); }, 'danger'));
-      tr.append(actions); body.append(tr);
-    });
-    table.append(body); tableBox.append(table);
+    tableBox.textContent = '';
+    const selectedStore = state.stores.find((store) => String(store.id) === String(storeId));
+    if (!rows.length) emptyNote(tableBox, `${selectedStore?.name || '所选店铺'}暂无商品`);
+    else {
+      const table = document.createElement('table');
+      table.innerHTML = '<thead><tr><th>商品 ID</th><th>商品名称</th><th>店铺</th><th>类目</th><th>运营</th><th>操作</th></tr></thead>';
+      const body = document.createElement('tbody');
+      rows.forEach((item) => {
+        const tr = document.createElement('tr');
+        [item.product_id, item.name, storeName(item.store_id), categoryName(item.category_id), operatorName(item.operator_id)].forEach((value) => tr.append(cell(value)));
+        const actions = document.createElement('td');
+        actions.append(actionButton('编辑', () => editProduct(item)), actionButton('删除', () => removeProduct(item), 'danger'));
+        tr.append(actions);
+        body.append(tr);
+      });
+      table.append(body);
+      tableBox.append(table);
+    }
     [...tabs.children].forEach((button) => button.classList.toggle('active', button.dataset.storeId === String(storeId)));
   };
-  stores.forEach((store, index) => {
+  state.stores.forEach((store, index) => {
     const button = document.createElement('button');
-    button.type = 'button'; button.className = 'product-store-tab'; button.dataset.storeId = store.id; button.textContent = store.name;
-    button.addEventListener('click', () => renderStore(store.id)); tabs.append(button);
+    button.type = 'button';
+    button.className = 'product-store-tab';
+    button.dataset.storeId = store.id;
+    button.textContent = store.name;
+    button.addEventListener('click', () => renderStore(store.id));
+    tabs.append(button);
     if (index === 0) renderStore(store.id);
   });
   container.append(tabs, tableBox);
 }
+
+async function editProduct(item) {
+  try {
+    const name = window.prompt('商品名称', item.name);
+    if (name === null) return;
+    const productId = window.prompt('商品 ID', item.product_id);
+    if (productId === null) return;
+    const categoryChoices = state.categories.map((category) => `${category.id}: ${category.name}`).join('\n');
+    const categoryId = window.prompt(`类目编号：\n${categoryChoices}`, item.category_id);
+    if (categoryId === null) return;
+    const operatorChoices = state.operators.map((operator) => `${operator.id}: ${operator.name}`).join('\n');
+    const operatorId = window.prompt(`运营编号：\n${operatorChoices}`, item.operator_id);
+    if (operatorId === null) return;
+    const newProductId = productId.trim();
+    if (!name.trim() || !newProductId || !categoryId || !operatorId) {
+      notify('商品字段不能为空', 'error');
+      return;
+    }
+    await api(`/api/admin/products/${item.store_id}/${encodeURIComponent(item.product_id)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ product_id: newProductId, name: name.trim(), category_id: Number(categoryId), operator_id: Number(operatorId) }),
+    });
+    await loadDimensions();
+    await loadTargets();
+    notify('商品信息已更新');
+  } catch (error) {
+    notify(`修改失败：${error.message}`, 'error');
+  }
+}
+
+async function removeProduct(item) {
+  if (!window.confirm(`确定删除商品 ${item.product_id} 吗？`)) return;
+  try {
+    await api(`/api/admin/products/${item.store_id}/${encodeURIComponent(item.product_id)}`, { method: 'DELETE' });
+    await loadDimensions();
+    await loadTargets();
+    notify('商品已删除');
+  } catch (error) {
+    notify(`删除失败：${error.message}`, 'error');
+  }
+}
+
 
 async function loadDimensions() {
   const [operators, stores, categories, products] = await Promise.all([
@@ -381,7 +451,7 @@ if (productImportForm && productImportResult) {
       const lines = [
         `导入完成：${body.file_name}`,
         `识别表头行：第 ${body.header_row} 行，读取 ${body.rows} 行`,
-        `新增商品 ${stats['新增'] || 0}，更新商品 ${stats['更新'] || 0}，跳过 ${stats['跳过'] || 0}`,
+        `新增商品 ${stats['新增商品'] || 0}，已存在商品 ${stats['已存在商品'] || 0}，重复商品行 ${stats['重复商品行'] || 0}，跳过 ${stats['跳过'] || 0}`,
         `自动新建运营 ${stats['新建运营'] || 0}，自动新建类目 ${stats['新建类目'] || 0}`,
       ];
       if (stats['未匹配店铺']) {

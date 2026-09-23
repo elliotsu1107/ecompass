@@ -35,3 +35,15 @@ def test_dashboard_links_to_admin_login(client):
     assert response.status_code == 200
     assert 'href="/login"' in response.text
     assert "后台管理" in response.text
+
+
+def test_login_layout_keeps_fields_and_submit_button_in_form(client):
+    response = client.get("/login")
+
+    assert response.status_code == 200
+    assert '<form method="post" action="/login">' in response.text
+    assert 'class="login-field"' in response.text
+    assert 'id="username"' in response.text
+    assert 'id="password"' in response.text
+    assert '<button type="submit">登录</button>' in response.text
+    assert ".login-field{align-items:flex-start;flex-direction:column" in response.text

@@ -36,8 +36,9 @@ def _text(value: Any) -> str:
 
 def import_products(connection, rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     stats: dict[str, Any] = {
-        "新增": 0,
-        "更新": 0,
+        "新增商品": 0,
+        "已存在商品": 0,
+        "重复商品行": 0,
         "跳过": 0,
         "新建运营": 0,
         "新建类目": 0,
@@ -95,19 +96,22 @@ def import_products(connection, rows: Iterable[Mapping[str, Any]]) -> dict[str, 
             stats["新建类目"] += 1
 
         key = (store_id, product_id)
-        exists = key in seen or connection.execute(
-            "SELECT 1 FROM products WHERE store_id=? AND product_id=?", key
-        ).fetchone() is not None
-        connection.execute(
-            "INSERT INTO products (store_id, product_id, name, category_id, operator_id)"
-            " VALUES (?,?,?,?,?)"
-            " ON CONFLICT(store_id, product_id) DO UPDATE SET"
-            " name=excluded.name, category_id=excluded.category_id,"
-            " operator_id=excluded.operator_id",
-            (store_id, product_id, name or product_id, category_id, operator_id),
-        )
-        seen.add(key)
-        stats["更新" if exists else "新增"] += 1
+        if key in seen:
+            stats["重复商品行"] += 1
+        else:
+            exists = connection.execute(
+                "SELECT 1 FROM products WHERE store_id=? AND product_id=?", key
+            ).fetchone() is not None
+            connection.execute(
+                "INSERT INTO products (store_id, product_id, name, category_id, operator_id)"
+                " VALUES (?,?,?,?,?)"
+                " ON CONFLICT(store_id, product_id) DO UPDATE SET"
+                " name=excluded.name, category_id=excluded.category_id,"
+                " operator_id=excluded.operator_id",
+                (store_id, product_id, name or product_id, category_id, operator_id),
+            )
+            stats["已存在商品" if exists else "新增商品"] += 1
+            seen.add(key)
 
     connection.commit()
     return stats

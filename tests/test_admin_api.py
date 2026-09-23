@@ -27,6 +27,8 @@ def test_admin_page_exposes_configuration_sections(client):
     assert response.status_code == 200
     for section in ("stores", "operators", "categories", "products", "targets"):
         assert f'data-section="{section}"' in response.text
+    assert 'data-tab="stores"' in response.text
+    assert '.is-hidden' in response.text
 
 
 def test_admin_creates_and_lists_stores_operators_categories(client):
@@ -158,10 +160,23 @@ def test_admin_can_edit_and_delete_dimensions_and_products(client):
     assert client.put(f"/api/admin/operators/{operator_id}", json={"name": "小李"}, headers=headers).status_code == 200
     assert client.put(f"/api/admin/stores/{store_id}", json={"name": "B店铺", "platform": "天猫"}, headers=headers).status_code == 200
     assert client.put(f"/api/admin/categories/{category_id}", json={"name": "杯具", "operator_id": operator_id}, headers=headers).status_code == 200
-    assert client.put(f"/api/admin/products/{store_id}/P1", json={"name": "新", "category_id": category_id, "operator_id": operator_id}, headers=headers).status_code == 200
+    connection = client.app.state.db()
+    connection.execute("INSERT INTO fact_product_daily(date, store_id, product_id, product_name, category_id, operator_id) VALUES ('2026-09-01', ?, 'P1', '旧', ?, ?)", (store_id, category_id, operator_id))
+    connection.commit()
+    connection.close()
+    assert client.put(f"/api/admin/products/{store_id}/P1", json={"product_id": "P2", "name": "新", "category_id": category_id, "operator_id": operator_id}, headers=headers).status_code == 200
+    assert client.get("/api/admin/products", headers=headers).json()["items"][0]["product_id"] == "P2"
+    connection = client.app.state.db()
+    assert connection.execute("SELECT product_id FROM fact_product_daily").fetchone()[0] == "P2"
+    connection.close()
     assert client.delete(f"/api/admin/categories/{category_id}", headers=headers).status_code == 409
     assert client.delete(f"/api/admin/operators/{operator_id}", headers=headers).status_code == 409
-    assert client.delete(f"/api/admin/products/{store_id}/P1", headers=headers).status_code == 200
+    assert client.delete(f"/api/admin/products/{store_id}/P2", headers=headers).status_code == 409
+    connection = client.app.state.db()
+    connection.execute("DELETE FROM fact_product_daily WHERE store_id=? AND product_id='P2'", (store_id,))
+    connection.commit()
+    connection.close()
+    assert client.delete(f"/api/admin/products/{store_id}/P2", headers=headers).status_code == 200
     assert client.delete(f"/api/admin/categories/{category_id}", headers=headers).status_code == 200
     assert client.delete(f"/api/admin/operators/{operator_id}", headers=headers).status_code == 200
 

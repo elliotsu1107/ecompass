@@ -42,12 +42,14 @@ CREATE TABLE IF NOT EXISTS fact_product_daily (
     date TEXT NOT NULL,
     store_id INTEGER NOT NULL REFERENCES stores(id),
     product_id TEXT NOT NULL,
+    product_name TEXT,
     category_id INTEGER NOT NULL REFERENCES categories(id),
     operator_id INTEGER NOT NULL REFERENCES operators(id),
     pay_amount NUMERIC NOT NULL DEFAULT 0,
     refund_amount NUMERIC NOT NULL DEFAULT 0,
     pay_qty INTEGER NOT NULL DEFAULT 0,
     visitors INTEGER NOT NULL DEFAULT 0,
+    buyers INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (date, store_id, product_id),
     FOREIGN KEY (store_id, product_id) REFERENCES products(store_id, product_id)
 );

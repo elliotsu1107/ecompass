@@ -16,3 +16,16 @@ def connect_db(path: Path) -> sqlite3.Connection:
 def init_db(path: Path) -> None:
     with connect_db(path) as connection:
         connection.executescript(_SCHEMA_PATH.read_text(encoding="utf-8"))
+        migrations = {
+            "product_name": "TEXT",
+            "buyers": "INTEGER NOT NULL DEFAULT 0",
+        }
+        columns = {
+            row[1]
+            for row in connection.execute("PRAGMA table_info(fact_product_daily)")
+        }
+        for column, definition in migrations.items():
+            if column not in columns:
+                connection.execute(
+                    f"ALTER TABLE fact_product_daily ADD COLUMN {column} {definition}"
+                )

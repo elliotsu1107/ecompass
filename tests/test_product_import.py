@@ -47,7 +47,9 @@ def test_import_products_creates_operators_categories_and_products(client):
 
     assert response.status_code == 200, response.text
     stats = response.json()["stats"]
-    assert stats["新增"] == 3
+    assert stats["新增商品"] == 3
+    assert stats["已存在商品"] == 0
+    assert stats["重复商品行"] == 0
     assert stats["新建运营"] == 2
     assert stats["新建类目"] == 2
 
@@ -90,11 +92,31 @@ def test_import_products_reuses_existing_store_and_updates_same_product(client):
         headers=headers,
     )
 
-    assert response.json()["stats"]["更新"] == 1
+    assert response.json()["stats"]["已存在商品"] == 1
+    assert response.json()["stats"]["新增商品"] == 0
     products = client.get("/api/admin/products", headers=headers).json()["items"]
     assert len(products) == 1
     assert products[0]["name"] == "新名称"
     assert products[0]["store_id"] == store_id
+
+
+def test_import_products_counts_duplicate_sku_rows_as_one_product(tmp_path):
+    from app.db import connect_db, init_db
+
+    db_path = tmp_path / "data" / "ecompass.db"
+    init_db(db_path)
+    connection = connect_db(db_path)
+    connection.execute("INSERT INTO stores (id, name, platform) VALUES (1, 'A店铺', '淘宝')")
+    connection.commit()
+    stats = import_products(connection, [
+        {"店铺": "A店铺", "商品ID": "P1", "商品名称": "商品", "类目": "类目", "运营": "运营"},
+        {"店铺": "A店铺", "商品ID": "P1", "商品名称": "商品-SKU2", "类目": "类目", "运营": "运营"},
+    ])
+
+    assert stats["新增商品"] == 1
+    assert stats["重复商品行"] == 1
+    assert stats["已存在商品"] == 0
+    assert connection.execute("SELECT COUNT(*) FROM products").fetchone()[0] == 1
 
 
 def test_import_products_reports_unknown_store_and_missing_columns(tmp_path):
@@ -111,7 +133,7 @@ def test_import_products_reports_unknown_store_and_missing_columns(tmp_path):
 
     assert stats["未匹配店铺"] == 1
     assert stats["跳过"] == 1
-    assert stats["新增"] == 0
+    assert stats["新增商品"] == 0
     assert "不存在的店" in stats["未匹配店铺名称"]
 
 
@@ -129,7 +151,7 @@ def test_import_products_normalizes_numeric_product_ids(tmp_path):
         {"店铺": "A店铺", "商品ID": "6712345678902.0", "商品名称": "挂耳", "类目": "咖啡", "运营": "小王"},
     ])
 
-    assert stats["新增"] == 2
+    assert stats["新增商品"] == 2
     ids = [row[0] for row in connection.execute("SELECT product_id FROM products ORDER BY product_id")]
     assert ids == ["6712345678901", "6712345678902"]
 
@@ -149,3 +171,14 @@ def test_admin_page_exposes_product_list_import(client):
 
     assert response.status_code == 200
     assert 'id="product-import-form"' in response.text
+
+
+def test_product_tabs_include_each_store_including_empty_store():
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parents[1] / "app/web/static/admin.js"
+    script = source.read_text(encoding="utf-8")
+
+    assert "state.stores.forEach((store, index)" in script
+    assert "const stores = state.stores.filter" not in script
+    assert "暂无商品" in script

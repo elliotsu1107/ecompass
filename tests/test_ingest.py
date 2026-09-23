@@ -1,6 +1,7 @@
 import sqlite3
 
 from app.imports.ingester import ingest
+from app.db import connect_db, init_db
 
 
 def _db():
@@ -59,3 +60,28 @@ def test_ingest_accepts_real_product_report_metric_headers():
     assert result["新增"] == 1
     row = connection.execute("SELECT pay_amount, refund_amount, pay_qty, visitors, buyers FROM fact_product_daily").fetchone()
     assert tuple(row) == (12.0, 1.0, 2, 30, 3)
+
+
+def test_real_schema_product_and_ad_first_import_counts_insert_then_update(tmp_path):
+    db_path = tmp_path / "data" / "ecompass.db"
+    init_db(db_path)
+    connection = connect_db(db_path)
+    connection.execute("INSERT INTO operators(name) VALUES ('运营')")
+    operator_id = connection.execute("SELECT id FROM operators").fetchone()[0]
+    connection.execute("INSERT INTO stores(name, platform) VALUES ('A店', '淘宝')")
+    store_id = connection.execute("SELECT id FROM stores").fetchone()[0]
+    connection.execute("INSERT INTO categories(name, operator_id) VALUES ('类目', ?)", (operator_id,))
+    category_id = connection.execute("SELECT id FROM categories").fetchone()[0]
+    connection.execute("INSERT INTO products(store_id, product_id, name, category_id, operator_id) VALUES (?, 'P1', '商品', ?, ?)", (store_id, category_id, operator_id))
+    connection.commit()
+    products = [{"统计日期":"2026-09-01", "商品ID":"P1", "商品名称":"商品", "支付金额":100, "成功退款金额":10, "支付件数":2, "商品访客数":20, "支付买家数":3}]
+    ads = [{"日期":"2026-09-01", "主体ID":"P1", "主体类型":"商品", "花费":5, "总成交金额":20}]
+
+    first = ingest(connection, str(store_id), product_rows=products, ad_rows=ads)
+    second = ingest(connection, str(store_id), product_rows=products, ad_rows=ads)
+
+    assert first == {"新增": 2, "更新": 0, "跳过": 0, "未匹配": 0}
+    assert second == {"新增": 0, "更新": 2, "跳过": 0, "未匹配": 0}
+    product = connection.execute("SELECT product_name, pay_amount FROM fact_product_daily").fetchone()
+    assert tuple(product) == ("商品", 100)
+    connection.close()

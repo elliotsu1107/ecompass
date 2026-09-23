@@ -83,6 +83,7 @@ def test_schema_contains_required_tables_and_business_keys(client, db_path):
             "product_id",
             "category_id",
             "operator_id",
+            "product_name",
             "pay_amount",
             "refund_amount",
             "pay_qty",
