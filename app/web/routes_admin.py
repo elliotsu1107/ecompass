@@ -73,6 +73,50 @@ def admin_page(request: Request, admin_session: str | None = Cookie(default=None
     return templates.TemplateResponse(request, "admin.html")
 
 
+@router.post("/api/admin/clear/{scope}")
+def clear_scope(scope: str, request: Request, payload: dict, _admin: str = Depends(admin_required)):
+    from app.admin.reset import ClearConfirmationError, ClearScopeError, clear_scope as clear_scope_data
+
+    connection = _connection(request)
+    try:
+        return clear_scope_data(
+            connection,
+            Path(getattr(request.app.state, "data_dir", Path("data"))),
+            scope,
+            payload.get("confirmation"),
+        )
+    except ClearConfirmationError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except ClearScopeError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    finally:
+        connection.close()
+
+
+@router.post("/api/admin/bulk-delete")
+def bulk_delete(request: Request, payload: dict, _admin: str = Depends(admin_required)):
+    table = payload.get("table")
+    if table not in (*DIMENSION_TABLES, "products"):
+        raise HTTPException(status_code=400, detail="不支持的批量删除类型")
+    connection = _connection(request)
+    deleted = []
+    failed = []
+    try:
+        for item in payload.get("items", []):
+            try:
+                if table == "products":
+                    ProductStore(connection).delete(item.get("store_id"), item.get("product_id"))
+                    deleted.append(item)
+                else:
+                    DimensionStore(connection).delete(table, item.get("id"))
+                    deleted.append(item.get("id"))
+            except (LookupError, RuntimeError, ValueError) as exc:
+                failed.append({"item": item, "reason": str(exc)})
+        return {"table": table, "deleted": deleted, "failed": failed}
+    finally:
+        connection.close()
+
+
 @router.post("/api/admin/reset")
 def reset_business_data(request: Request, payload: dict, _admin: str = Depends(admin_required)):
     from app.admin.reset import ClearConfirmationError, clear_business_data

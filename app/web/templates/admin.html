@@ -75,6 +75,7 @@
         </div>
         <button type="submit">新增运营</button>
       </form>
+      <div class="bulk-toolbar"><button type="button" class="bulk-delete" data-table="operators">删除选中运营</button></div>
       <div id="operator-list"></div>
     </section>
 
@@ -92,6 +93,7 @@
         </div>
         <button type="submit">新增店铺</button>
       </form>
+      <div class="bulk-toolbar"><button type="button" class="bulk-delete" data-table="stores">删除选中店铺</button></div>
       <div id="store-list"></div>
     </section>
 
@@ -109,6 +111,7 @@
         </div>
         <button type="submit">新增类目</button>
       </form>
+      <div class="bulk-toolbar"><button type="button" class="bulk-delete" data-table="categories">删除选中类目</button></div>
       <div id="category-list"></div>
     </section>
 
@@ -145,6 +148,7 @@
         </div>
         <button type="submit">新增商品</button>
       </form>
+      <div class="bulk-toolbar"><button type="button" class="bulk-delete" data-table="products">删除当前店铺选中商品</button></div>
       <div id="product-list"></div>
     </section>
 
@@ -169,6 +173,18 @@
         <li>店铺、类目和运营目标</li>
         <li>导入记录和字段映射</li>
       </ul>
+      <div class="scoped-clear-grid">
+        <button type="button" class="scoped-clear" data-scope="stores">清空店铺</button>
+        <button type="button" class="scoped-clear" data-scope="categories">清空类目</button>
+        <button type="button" class="scoped-clear" data-scope="operators">清空运营人员</button>
+        <button type="button" class="scoped-clear" data-scope="operator_targets">清空运营目标</button>
+        <button type="button" class="scoped-clear" data-scope="product_list">清空产品清单</button>
+        <button type="button" class="scoped-clear" data-scope="store_reports">清空店铺报表</button>
+        <button type="button" class="scoped-clear" data-scope="product_reports">清空商品报表</button>
+        <button type="button" class="scoped-clear" data-scope="ad_reports">清空推广报表</button>
+        <button type="button" class="scoped-clear" data-scope="import_logs">清空导入记录</button>
+      </div>
+      <div id="scoped-clear-message" class="message" role="status" aria-live="polite"></div>
       <form id="reset-form">
         <label for="reset-confirmation">请输入 CLEAR</label>
         <input id="reset-confirmation" name="confirmation" autocomplete="off" spellcheck="false" required>

@@ -32,14 +32,60 @@ def import_page(request: Request, admin_session: str | None = Cookie(default=Non
     return templates.TemplateResponse(request, "import.html")
 
 
+def _trim_import_logs(connection, keep: int = 20) -> int:
+    rows = connection.execute(
+        "SELECT id, archive_path FROM import_logs ORDER BY created_at DESC, id DESC LIMIT -1 OFFSET ?",
+        (keep,),
+    ).fetchall()
+    deleted = 0
+    for row in rows:
+        archive_path = row["archive_path"] if hasattr(row, "keys") else row[1]
+        if archive_path:
+            path = Path(str(archive_path))
+            if path.exists() and path.is_file():
+                path.unlink()
+                deleted += 1
+        log_id = row["id"] if hasattr(row, "keys") else row[0]
+        connection.execute("DELETE FROM import_logs WHERE id=?", (log_id,))
+    return deleted
+
+
+def _delete_import_log(connection, log_id: int) -> dict:
+    row = connection.execute("SELECT archive_path FROM import_logs WHERE id=?", (log_id,)).fetchone()
+    if row is None:
+        raise LookupError("导入记录不存在")
+    archive_path = row["archive_path"] if hasattr(row, "keys") else row[0]
+    deleted_file = False
+    if archive_path:
+        path = Path(str(archive_path))
+        if path.exists() and path.is_file():
+            path.unlink()
+            deleted_file = True
+    connection.execute("DELETE FROM import_logs WHERE id=?", (log_id,))
+    connection.commit()
+    return {"id": log_id, "deleted_file": deleted_file}
+
+
+@router.delete("/api/import/logs/{log_id}")
+def delete_import_log(log_id: int, request: Request, _admin: str = Depends(admin_required)):
+    connection = _db(request)
+    try:
+        try:
+            return _delete_import_log(connection, log_id)
+        except LookupError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+    finally:
+        connection.close()
+
+
 @router.get("/api/import/logs")
 def import_logs(request: Request, limit: int = 20, _admin: str = Depends(admin_required)):
     connection = _db(request)
     cursor = connection.execute(
-        "SELECT created_at, file_type, file_name, data_date, inserted_rows, updated_rows,"
+        "SELECT id, created_at, file_type, file_name, data_date, inserted_rows, updated_rows,"
         " skipped_rows, unmatched_rows, archive_path FROM import_logs"
         " ORDER BY created_at DESC, id DESC LIMIT ?",
-        (max(1, min(limit, 200)),),
+        (max(1, min(limit, 20)),),
     )
     rows = cursor.fetchall()
     connection.close()
@@ -79,6 +125,8 @@ async def upload(request: Request, file: UploadFile = File(...), store_id: str =
             else:
                 raise HTTPException(status_code=400, detail="未知报表类型，应为 store、product 或 ad")
             connection.execute("INSERT INTO import_logs (created_at,file_type,file_name,file_sha256,data_date,inserted_rows,updated_rows,skipped_rows,unmatched_rows,archive_path) VALUES (?,?,?,?,?,?,?,?,?,?)", (datetime.now(timezone.utc).isoformat(), file_type, file.filename, digest, table.rows[0].get("日期", table.rows[0].get("统计日期", "")) if table.rows else "", stats["新增"], stats["更新"], stats["跳过"], stats["未匹配"], str(path)))
+            connection.commit()
+            _trim_import_logs(connection)
             connection.commit()
         finally:
             connection.close()
@@ -129,6 +177,8 @@ async def upload_product_list(
                     str(path),
                 ),
             )
+            connection.commit()
+            _trim_import_logs(connection)
             connection.commit()
         finally:
             connection.close()

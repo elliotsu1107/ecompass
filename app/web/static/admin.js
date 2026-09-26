@@ -138,18 +138,43 @@ async function editDimension(table, item) {
 
 function renderDimensionTable(container, headers, rows, table) {
   if (!rows.length) return emptyNote(container, '暂无数据');
-  container.textContent = ''; const element = document.createElement('table');
-  element.innerHTML = `<thead><tr>${[...headers, '操作'].map((h) => `<th>${h}</th>`).join('')}</tr></thead>`;
+  container.textContent = '';
+  const element = document.createElement('table');
+  const head = document.createElement('thead');
+  const headRow = document.createElement('tr');
+  const selectHead = document.createElement('th');
+  const selectAll = document.createElement('input');
+  selectAll.type = 'checkbox';
+  selectAll.setAttribute('aria-label', '全选');
+  selectHead.append(selectAll);
+  headRow.append(selectHead);
+  [...headers, '操作'].forEach((header) => {
+    const th = document.createElement('th');
+    th.textContent = header;
+    headRow.append(th);
+  });
+  head.append(headRow);
   const body = document.createElement('tbody');
   rows.forEach((item) => {
     const tr = document.createElement('tr');
+    const selectCell = document.createElement('td');
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'row-select';
+    checkbox.dataset.table = table;
+    checkbox.dataset.id = item.id;
+    selectCell.append(checkbox);
+    tr.append(selectCell);
     const values = table === 'operators' ? [item.name, item.id] : table === 'stores' ? [item.name, item.platform, item.id] : [item.name, operatorName(item.operator_id), item.id];
     values.forEach((value) => tr.append(cell(value)));
     const actions = document.createElement('td');
     actions.append(actionButton('编辑', () => editDimension(table, item)), actionButton('删除', () => removeDimension(table, item), 'danger'));
-    tr.append(actions); body.append(tr);
+    tr.append(actions);
+    body.append(tr);
   });
-  element.append(body); container.append(element);
+  selectAll.addEventListener('change', () => body.querySelectorAll('.row-select').forEach((checkbox) => { checkbox.checked = selectAll.checked; }));
+  element.append(head, body);
+  container.append(element);
 }
 
 function renderDimensions() {
@@ -179,10 +204,32 @@ function renderProductTabs() {
     if (!rows.length) emptyNote(tableBox, `${selectedStore?.name || '所选店铺'}暂无商品`);
     else {
       const table = document.createElement('table');
-      table.innerHTML = '<thead><tr><th>商品 ID</th><th>商品名称</th><th>店铺</th><th>类目</th><th>运营</th><th>操作</th></tr></thead>';
+      const head = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      const selectHead = document.createElement('th');
+      const selectAll = document.createElement('input');
+      selectAll.type = 'checkbox';
+      selectAll.setAttribute('aria-label', '全选');
+      selectHead.append(selectAll);
+      headRow.append(selectHead);
+      ['商品 ID', '商品名称', '店铺', '类目', '运营', '操作'].forEach((label) => {
+        const th = document.createElement('th');
+        th.textContent = label;
+        headRow.append(th);
+      });
+      head.append(headRow);
       const body = document.createElement('tbody');
       rows.forEach((item) => {
         const tr = document.createElement('tr');
+        const selectCell = document.createElement('td');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'row-select product-row-select';
+        checkbox.dataset.table = 'products';
+        checkbox.dataset.storeId = item.store_id;
+        checkbox.dataset.productId = item.product_id;
+        selectCell.append(checkbox);
+        tr.append(selectCell);
         [item.product_id, item.name, storeName(item.store_id), categoryName(item.category_id), operatorName(item.operator_id)].forEach((value) => tr.append(cell(value)));
         const actions = document.createElement('td');
         actions.append(actionButton('编辑', () => editProduct(item)), actionButton('删除', () => removeProduct(item), 'danger'));
@@ -191,6 +238,7 @@ function renderProductTabs() {
       });
       table.append(body);
       tableBox.append(table);
+      selectAll.addEventListener('change', () => body.querySelectorAll('.row-select').forEach((checkbox) => { checkbox.checked = selectAll.checked; }));
     }
     [...tabs.children].forEach((button) => button.classList.toggle('active', button.dataset.storeId === String(storeId)));
   };
@@ -494,7 +542,50 @@ document.querySelectorAll('.tab[data-tab]').forEach((tab) => {
 });
 document.querySelectorAll('section[data-section]').forEach((section) => section.classList.toggle('is-hidden', section.dataset.section !== 'operators'));
 
-const resetForm = document.querySelector('#reset-form');
+document.querySelectorAll('.bulk-delete').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const table = button.dataset.table;
+    const selected = [...document.querySelectorAll(`.row-select[data-table="${table}"]:checked`)].map((checkbox) => table === 'products'
+      ? { store_id: Number(checkbox.dataset.storeId), product_id: checkbox.dataset.productId }
+      : { id: Number(checkbox.dataset.id) });
+    if (!selected.length) return notify('请先选择要删除的记录', 'error');
+    if (!window.confirm(`确定删除选中的 ${selected.length} 条记录吗？`)) return;
+    try {
+      const result = await api('/api/admin/bulk-delete', { method: 'POST', body: JSON.stringify({ table, items: selected }) });
+      await loadDimensions();
+      await loadTargets();
+      const failed = result.failed || [];
+      notify(failed.length ? `已删除 ${result.deleted.length} 条，失败 ${failed.length} 条：${failed.map((item) => item.reason).join('；')}` : `已删除 ${result.deleted.length} 条` , failed.length ? 'error' : 'success');
+    } catch (error) {
+      notify(`批量删除失败：${error.message}`, 'error');
+    }
+  });
+});
+
+const scopedClearMessage = document.querySelector('#scoped-clear-message');
+document.querySelectorAll('.scoped-clear').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const scope = button.dataset.scope;
+    const confirmation = window.prompt(`此操作只清空“${button.textContent}”，不会自动删除其他数据。请输入 CLEAR：`);
+    if (confirmation === null) return;
+    try {
+      const result = await api(`/api/admin/clear/${scope}`, { method: 'POST', body: JSON.stringify({ confirmation }) });
+      if (scopedClearMessage) {
+        scopedClearMessage.className = 'message success';
+        scopedClearMessage.textContent = `清空完成：${button.textContent}\n备份：${result.backup_path}\n删除归档：${result.archives_deleted || 0} 个`;
+      }
+      await loadDimensions();
+      await loadTargets();
+    } catch (error) {
+      if (scopedClearMessage) {
+        scopedClearMessage.className = 'message error';
+        scopedClearMessage.textContent = `清空失败：${error.message}`;
+      }
+    }
+  });
+});
+
+
 const resetMessage = document.querySelector('#reset-message');
 
 function formatCounts(counts) {

@@ -196,7 +196,59 @@ def test_import_page_offers_store_report_and_store_list(client):
     assert 'id="store-select"' in response.text
 
 
-def test_import_logs_endpoint_returns_recent_records(client):
+def test_admin_bulk_delete_reports_each_referenced_failure(client):
+    operator_id = create_dimension(client, "operators", {"name": "小王"})
+    store_id = create_dimension(client, "stores", {"name": "A店铺", "platform": "淘宝"})
+    category_id = create_dimension(client, "categories", {"name": "咖啡", "operator_id": operator_id})
+    headers = admin_headers(client)
+    client.post("/api/admin/products", json={"store_id": store_id, "product_id": "P1", "name": "商品", "category_id": category_id, "operator_id": operator_id}, headers=headers)
+    connection = client.app.state.db()
+    connection.execute("INSERT INTO fact_product_daily(date, store_id, product_id, category_id, operator_id) VALUES ('2026-01-01', ?, 'P1', ?, ?)", (store_id, category_id, operator_id))
+    connection.commit()
+    connection.close()
+
+    response = client.post("/api/admin/bulk-delete", json={"table": "products", "items": [{"store_id": store_id, "product_id": "P1"}]}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["deleted"] == []
+    assert response.json()["failed"][0]["reason"]
+
+
+def test_admin_can_clear_product_reports_without_clearing_import_logs(client):
+    headers = admin_headers(client)
+    connection = client.app.state.db()
+    connection.execute("INSERT INTO import_logs (created_at, file_type, file_name, file_sha256, data_date) VALUES ('now', 'product', 'p.xlsx', 'sha', '')")
+    connection.commit()
+    connection.close()
+
+    response = client.post("/api/admin/clear/product_reports", json={"confirmation": "CLEAR"}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["scope"] == "product_reports"
+    connection = client.app.state.db()
+    assert connection.execute("SELECT COUNT(*) FROM import_logs").fetchone()[0] == 1
+    connection.close()
+
+
+def test_import_logs_are_capped_and_archived_file_can_be_deleted(client, tmp_path):
+    headers = admin_headers(client)
+    connection = client.app.state.db()
+    archive = tmp_path / "archive.xlsx"
+    archive.write_bytes(b"archive")
+    for index in range(21):
+        connection.execute("INSERT INTO import_logs (created_at, file_type, file_name, file_sha256, data_date, archive_path) VALUES (?, 'store', ?, 'sha', '', ?)", (f"2026-01-{index + 1:02d}", f"{index}.xlsx", str(archive) if index == 0 else None))
+    connection.commit()
+    connection.close()
+
+    response = client.delete("/api/import/logs/1", headers=headers)
+
+    assert response.status_code == 200
+    assert not archive.exists()
+    connection = client.app.state.db()
+    assert connection.execute("SELECT COUNT(*) FROM import_logs").fetchone()[0] <= 20
+    connection.close()
+
+
     headers = admin_headers(client)
     connection = client.app.state.db()
     connection.execute(

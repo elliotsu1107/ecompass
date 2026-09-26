@@ -45,7 +45,7 @@ function renderLogs(items) {
   const table = document.createElement('table');
   const head = document.createElement('thead');
   const headRow = document.createElement('tr');
-  ['时间', '类型', '文件', '数据日期', '新增', '更新', '跳过', '未匹配'].forEach((label) => {
+  ['时间', '类型', '文件', '数据日期', '新增', '更新', '跳过', '未匹配', '操作'].forEach((label) => {
     const th = document.createElement('th');
     th.textContent = label;
     headRow.append(th);
@@ -69,6 +69,23 @@ function renderLogs(items) {
       td.textContent = String(value === null || value === undefined ? '' : value);
       tr.append(td);
     });
+    const actionCell = document.createElement('td');
+    const deleteButton = document.createElement('button');
+    deleteButton.type = 'button';
+    deleteButton.textContent = '删除记录和文件';
+    deleteButton.addEventListener('click', async () => {
+      if (!window.confirm(`确定删除导入记录“${item.file_name}”及其归档文件吗？`)) return;
+      try {
+        const response = await fetch(`/api/import/logs/${item.id}`, { method: 'DELETE' });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.detail || '删除失败');
+        await loadLogs();
+      } catch (error) {
+        setResult(`删除失败：${error.message}`, 'error');
+      }
+    });
+    actionCell.append(deleteButton);
+    tr.append(actionCell);
     body.append(tr);
   });
   table.append(head, body);

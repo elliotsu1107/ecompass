@@ -48,6 +48,9 @@ def test_built_portable_package_contains_runtime_files_and_resources():
 
     assert "%~dp0" in start
     assert "ecompass.exe" in start
+    assert "start" in start.lower()
+    assert "http://127.0.0.1:8000" in start
+    assert "timeout /t 2" in start.lower()
     assert "%~dp0" in backup
     assert "data" in backup
 
