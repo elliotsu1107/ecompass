@@ -2,24 +2,13 @@ const form = document.querySelector('#import-form');
 const resultBox = document.querySelector('#result');
 const storeSelect = document.querySelector('#store-select');
 const logList = document.querySelector('#log-list');
-const mappingSection = document.querySelector('#mapping-section');
-const mappingList = document.querySelector('#mapping-list');
-const saveMappingButton = document.querySelector('#save-mapping');
-const mappingResult = document.querySelector('#mapping-result');
 
 const TYPE_LABELS = { store: '店铺数据', product: '商品数据', ad: '推广数据' };
-let currentMapping = { headers: [], fileType: '', storeId: '' };
 
 function setResult(text, kind = 'success') {
   if (!resultBox) return;
   resultBox.className = `message ${kind}`;
   resultBox.textContent = text;
-}
-
-function setMappingResult(text, kind = 'success') {
-  if (!mappingResult) return;
-  mappingResult.className = `message ${kind}`;
-  mappingResult.textContent = text;
 }
 
 async function loadStores() {
@@ -109,73 +98,6 @@ async function loadLogs() {
   renderLogs((await response.json()).items);
 }
 
-function renderMapping(body) {
-  if (!mappingSection || !mappingList) return;
-  currentMapping = {
-    headers: body.headers || [],
-    fileType: body.file_type,
-    storeId: String(body.store_id),
-  };
-  mappingList.textContent = '';
-  (body.fields || []).forEach((field) => {
-    const row = document.createElement('div');
-    row.className = 'mapping-row';
-    const label = document.createElement('span');
-    label.className = 'mapping-label';
-    label.textContent = field.label;
-    const select = document.createElement('select');
-    select.dataset.field = field.field;
-    const blank = document.createElement('option');
-    blank.value = '';
-    blank.textContent = '不使用';
-    select.append(blank);
-    currentMapping.headers.forEach((header) => {
-      const option = document.createElement('option');
-      option.value = header;
-      option.textContent = header;
-      select.append(option);
-    });
-    select.value = (body.mapping || {})[field.field] || '';
-    row.append(label, select);
-    mappingList.append(row);
-  });
-  mappingSection.hidden = false;
-  setMappingResult('');
-}
-
-async function saveMapping() {
-  if (!mappingList) return;
-  const mapping = {};
-  mappingList.querySelectorAll('select').forEach((select) => {
-    if (select.value) mapping[select.dataset.field] = select.value;
-  });
-  saveMappingButton.disabled = true;
-  setMappingResult('正在保存列映射...');
-  try {
-    const response = await fetch('/api/import/mappings', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        store_id: currentMapping.storeId,
-        file_type: currentMapping.fileType,
-        headers: currentMapping.headers,
-        mapping,
-      }),
-    });
-    const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.detail || '保存失败');
-    setMappingResult('列映射已保存。重新上传该报表即按新映射导入。');
-  } catch (error) {
-    setMappingResult(`保存失败：${error.message}`, 'error');
-  } finally {
-    saveMappingButton.disabled = false;
-  }
-}
-
-if (saveMappingButton) {
-  saveMappingButton.addEventListener('click', saveMapping);
-}
-
 if (form) {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -193,7 +115,6 @@ if (form) {
         `新增 ${stats['新增'] || 0}，更新 ${stats['更新'] || 0}，跳过 ${stats['跳过'] || 0}，未匹配 ${stats['未匹配'] || 0}`,
         (stats['未匹配'] || 0) > 0 ? '存在未匹配商品，请到管理后台补建商品后重新导入。' : '',
       ].filter(Boolean).join('\n'));
-      renderMapping(body);
       await loadLogs();
     } catch (error) {
       setResult(`导入失败：${error.message}`, 'error');

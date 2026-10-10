@@ -87,11 +87,15 @@ def dashboard_api(
             },
             "stores": stores,
             "categories": categories,
-            "operators": operator_metrics(connection, start, end, granularity)["rows"],
+            "operators": operator_metrics(connection, start, end, granularity, store_id)["rows"],
             "dimensions": {
                 "categories": category_dimensions,
                 "operators": operator_dimensions,
             },
+            "store_options": [
+                {"id": row["id"], "name": row["name"]}
+                for row in connection.execute("SELECT id, name FROM stores ORDER BY id")
+            ],
         }
     finally:
         connection.close()

@@ -5,8 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ title or '电商经营罗盘' }}</title>
   <style>
-    :root{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;color:#172033;background:#f5f7fb;line-height:1.5}
-    *{box-sizing:border-box}body{margin:0}.shell{max-width:1440px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}h1,h2,h3{margin:0 0 12px}.muted{color:#667085}.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}button,input,select{min-height:44px;border:1px solid #cbd5e1;border-radius:6px;padding:8px 12px;background:white;font:inherit}button{background:#1e40af;color:white;border-color:#1e40af;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.section{margin:28px 0}.card{background:#fff;border:1px solid #dbe3ef;border-radius:6px;padding:18px;box-shadow:0 2px 8px #1720330d}.value{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.metric small{display:block;color:#667085}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;background:#fff}th,td{text-align:left;padding:10px;border-bottom:1px solid #e5e7eb;white-space:nowrap}th{color:#475467;font-size:13px}.status{padding:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:6px}.login{max-width:420px;margin:12vh auto}.login form{display:flex;flex-direction:column;gap:10px}.login-field{display:flex;align-items:center;gap:10px}.login-field label{width:52px;flex:none}.login-field input{flex:1;max-width:none}.error{color:#b42318;margin:8px 0}.admin-entry{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;border:1px solid #1e40af;border-radius:6px;color:#1e40af;text-decoration:none;background:#fff}.admin-entry:hover{background:#eef2ff}@media(max-width:600px){.shell{padding:16px}.value{font-size:24px}header{align-items:flex-start;gap:12px;flex-direction:column}.login-field{align-items:flex-start;flex-direction:column;gap:4px}.login-field label{width:auto}}
+    :root{font-family:system-ui,-apple-system,"Microsoft YaHei",sans-serif;color:#1f2329;background:#f5f7fb;line-height:1.5;--blue:#1f6bff;--cyan:#21c3f3;--yellow:#ffc60a;--muted:#646a73;--line:#e5eaf0}
+    *{box-sizing:border-box}body{margin:0}.shell{max-width:1440px;margin:auto;padding:24px}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}h1,h2,h3{margin:0 0 12px}.muted{color:#667085}.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap}button,input,select{min-height:44px;border:1px solid #cbd5e1;border-radius:6px;padding:8px 12px;background:white;font:inherit}button{background:#1e40af;color:white;border-color:#1e40af;cursor:pointer}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.section{margin:28px 0}.card{background:#fff;border:1px solid #dbe3ef;border-radius:6px;padding:18px;box-shadow:0 2px 8px #1720330d}.value{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums}.metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.metric small{display:block;color:#667085}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;background:#fff}th,td{text-align:left;padding:10px;border-bottom:1px solid #e5e7eb;white-space:nowrap}th{color:#475467;font-size:13px}.status{padding:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:6px}.login{max-width:420px;margin:12vh auto}.login form{display:flex;flex-direction:column;gap:10px}.login-field{display:flex;align-items:center;gap:10px}.login-field label{width:52px;flex:none}.login-field input{flex:1;max-width:none}.error{color:#b42318;margin:8px 0}.admin-entry{display:inline-flex;align-items:center;min-height:44px;padding:8px 16px;border:1px solid #1e40af;border-radius:6px;color:#1e40af;text-decoration:none;background:#fff}.admin-entry:hover{background:#eef2ff}    @media(max-width:600px){.shell{padding:16px}.value{font-size:24px}header{align-items:flex-start;gap:12px;flex-direction:column}.login-field{align-items:flex-start;flex-direction:column;gap:4px}.login-field label{width:auto}}
+    body{background:#f5f7fb}
+    h1{font-size:22px;margin:0 0 4px}
+    .subtitle{color:var(--muted);font-size:13px;margin:0}
+    .panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-top:18px;box-shadow:0 1px 3px rgba(31,35,41,.06)}
+    .panel > h2{font-size:16px;margin:0;display:flex;align-items:center;gap:8px}
+    .panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    .panel-head h2{margin:0}
+    .panel-note{color:var(--muted);font-size:13px}
+    .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+    .kpi-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(31,35,41,.06)}
+    .kpi-card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+    .kpi-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+    .kpi-body{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}
+    .kpi-ring{width:96px;height:96px}
+    .kpi-figures{display:grid;gap:4px}
+    .kpi-main{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+    .kpi-line{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+    .kpi-line b{color:#1f2329;font-weight:600;font-variant-numeric:tabular-nums}
+    .chart{width:100%;height:240px}
+    .chart-sm{width:100%;height:180px}
+    details.fold{border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:12px}
+    details.fold > summary{cursor:pointer;padding:12px 16px;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:8px}
+    details.fold > summary::-webkit-details-marker{display:none}
+    details.fold > summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+    details.fold[open] > summary::before{transform:rotate(90deg)}
+    details.fold .fold-body{padding:0 16px 14px}
+    .two-col{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+    .col-card{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+    .col-title{padding:10px 14px;background:#fafbfc;border-bottom:1px solid var(--line);font-weight:600;font-size:14px;display:flex;justify-content:space-between}
+    .data-table{width:100%;border-collapse:collapse;font-size:13px}
+    .data-table th,.data-table td{padding:9px 12px;border-bottom:1px solid #f0f2f5;text-align:left}
+    .data-table th{background:#fafbfc;color:var(--muted);font-weight:600;white-space:nowrap}
+    .data-table tbody tr:hover{background:#f7f9fc}
+    .data-table td.num,.data-table th.num{text-align:right;font-variant-numeric:tabular-nums}
+    .data-table tfoot td{font-weight:600;background:#fafbfc}
+    .badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;background:#eef3ff;color:#1f6bff}
+    .badge.warn{background:#fff4e5;color:#b2600a}
+    .empty-note{color:var(--muted);font-size:13px;padding:12px 14px}
+    .status{padding:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:6px}
   </style>
 </head>
 <body><main class="shell">{% block content %}{% endblock %}</main></body>

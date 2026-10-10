@@ -33,10 +33,10 @@ def _connection():
     return connection
 
 
-def test_store_metrics_uses_store_daily_cost_and_flags_reconciliation_gap():
+def test_store_metrics_takes_ad_cost_from_ad_report_without_reconciliation():
     connection = _connection()
-    connection.execute("INSERT INTO fact_store_daily VALUES ('2026-01-02', 'A', 1000, 100, 90, 10, 2)")
-    connection.execute("INSERT INTO fact_product_daily VALUES ('2026-01-02', 'A', 'p1', 'c1', 'u1', 780, 50)")
+    connection.execute("INSERT INTO fact_store_daily VALUES ('2026-01-02', 'A', 1000, 100, 7, 10, 2)")
+    connection.execute("INSERT INTO fact_ad_daily VALUES ('2026-01-02', 'A', 'p1', 'c1', 'u1', 90)")
     connection.execute("INSERT INTO targets_store VALUES ('2026-01', 'A', 1200)")
 
     result = store_metrics(connection, "A", "2026-01-02", "2026-01-02", "day")
@@ -49,13 +49,7 @@ def test_store_metrics_uses_store_daily_cost_and_flags_reconciliation_gap():
         "cost_ratio": 0.1,
         "target_amount": 1200.0,
     }
-    assert result["reconciliation"] == {
-        "store_settlement_amount": 900.0,
-        "product_settlement_amount": 730.0,
-        "difference_amount": 170.0,
-        "difference_ratio": 170 / 900,
-        "alert": True,
-    }
+    assert "reconciliation" not in result
 
 
 def test_category_metrics_groups_fact_snapshots_and_uses_store_category_target():

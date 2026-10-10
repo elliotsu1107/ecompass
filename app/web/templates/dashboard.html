@@ -1,5 +1,21 @@
 {% extends 'base.html' %}{% block content %}
-<header><div><h1>运营数据看板</h1><p class="muted">电商经营罗盘 · 内网只读</p></div><div class="toolbar"><span id="day-range"><label for="start">开始日期</label><input id="start" type="date"><label for="end">结束日期</label><input id="end" type="date"></span><label for="month">月份</label><input id="month" type="month" hidden><label for="granularity">粒度</label><select id="granularity"><option value="day">日</option><option value="month" selected>月</option></select><button id="refresh" type="button">刷新</button><a class="admin-entry" href="/login">后台管理</a></div></header>
+<header>
+  <div>
+    <h1>运营数据看板</h1>
+    <p class="subtitle">电商经营罗盘 · 内网只读</p>
+  </div>
+  <div class="toolbar">
+    <span id="day-range"><label for="start">开始日期</label><input id="start" type="date"><label for="end">结束日期</label><input id="end" type="date"></span>
+    <label for="month">月份</label><input id="month" type="month" hidden>
+    <label for="granularity">粒度</label>
+    <select id="granularity"><option value="day">日</option><option value="month" selected>月</option></select>
+    <label for="store-filter">店铺</label>
+    <select id="store-filter"><option value="">全部店铺</option></select>
+    <button id="refresh" type="button">刷新</button>
+    <a class="admin-entry" href="/login">后台管理</a>
+  </div>
+</header>
 <section id="dashboard-app"><p class="muted">正在加载数据…</p></section>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script><script src="/static/app.js"></script>
+<script src="/static/echarts.min.js"></script>
+<script src="/static/app.js"></script>
 {% endblock %}

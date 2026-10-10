@@ -23,10 +23,6 @@
     .error { color: #b42318; }
     .success { color: #176b3a; }
     .empty { color: #8593a1; font-size: 14px; margin-top: 12px; }
-    .mapping-row { display: grid; grid-template-columns: 130px minmax(0, 320px); gap: 10px; align-items: center; margin-bottom: 8px; }
-    .mapping-label { font-size: 14px; color: #2c3a47; }
-    .mapping-row select { max-width: none; }
-    @media (max-width: 600px) { .mapping-row { grid-template-columns: 1fr; gap: 4px; } }
   </style>
 </head>
 <body>
@@ -52,13 +48,6 @@
         <button type="submit">上传并导入</button>
       </form>
       <div id="result" class="message" role="status" aria-live="polite"></div>
-    </section>
-    <section id="mapping-section" hidden>
-      <h2>列映射</h2>
-      <p class="hint">当前报表的表头与系统字段对应关系。表头名称不标准时在这里指定，保存后重新上传同一份报表即按新映射导入。</p>
-      <div id="mapping-list"></div>
-      <button id="save-mapping" type="button">保存列映射</button>
-      <div id="mapping-result" class="message" role="status" aria-live="polite"></div>
     </section>
     <section>
       <h2>最近导入记录</h2>

@@ -6,19 +6,34 @@ from app.metrics.common import period_expr, q, ratio, settlement
 
 
 def store_metrics(connection: sqlite3.Connection, store_id: str, start: str, end: str, granularity: str) -> dict:
+    """店铺指标：结算额取店铺日报，推广花费统一取推广报表按日期求和。"""
     period = period_expr(granularity=granularity)
     rows = q(
         connection,
         f"""
         SELECT {period} AS period, SUM(pay_amount) AS pay_amount,
-               SUM(refund_amount) AS refund_amount, SUM(ad_cost) AS ad_cost
+               SUM(refund_amount) AS refund_amount
         FROM fact_store_daily
         WHERE store_id = ? AND date BETWEEN ? AND ?
         GROUP BY {period} ORDER BY period
         """,
         (store_id, start, end),
     )
-    timeline = [_metric_row(row) | {"period": row["period"]} for row in rows]
+    ad_rows = q(
+        connection,
+        f"""
+        SELECT {period} AS period, SUM(cost) AS ad_cost
+        FROM fact_ad_daily
+        WHERE store_id = ? AND date BETWEEN ? AND ?
+        GROUP BY {period}
+        """,
+        (store_id, start, end),
+    )
+    ad_by_period = {row["period"]: float(row["ad_cost"] or 0) for row in ad_rows}
+    timeline = [
+        _metric_row(row, ad_by_period.get(row["period"], 0.0)) | {"period": row["period"]}
+        for row in rows
+    ]
     totals = _total(timeline)
     target = q(
         connection,
@@ -26,34 +41,12 @@ def store_metrics(connection: sqlite3.Connection, store_id: str, start: str, end
         (store_id, start[:7], end[:7]),
     )[0]["target_amount"]
     totals["target_amount"] = float(target or 0)
-    product = q(
-        connection,
-        """SELECT SUM(pay_amount) AS pay_amount, SUM(refund_amount) AS refund_amount
-           FROM fact_product_daily WHERE store_id = ? AND date BETWEEN ? AND ?""",
-        (store_id, start, end),
-    )[0]
-    store_settlement = totals["settlement_amount"]
-    product_settlement = settlement(product["pay_amount"], product["refund_amount"])
-    difference = abs(store_settlement - product_settlement)
-    difference_ratio = ratio(difference, store_settlement)
-    return {
-        "store_id": store_id,
-        "summary": totals,
-        "timeline": timeline,
-        "reconciliation": {
-            "store_settlement_amount": store_settlement,
-            "product_settlement_amount": product_settlement,
-            "difference_amount": difference,
-            "difference_ratio": difference_ratio,
-            "alert": difference > 100 or (difference_ratio is not None and difference_ratio > 0.01),
-        },
-    }
+    return {"store_id": store_id, "summary": totals, "timeline": timeline}
 
 
-def _metric_row(row: dict) -> dict:
+def _metric_row(row: dict, ad_cost: float) -> dict:
     pay = float(row["pay_amount"] or 0)
     refund = float(row["refund_amount"] or 0)
-    ad_cost = float(row["ad_cost"] or 0)
     net = settlement(pay, refund)
     return {"pay_amount": pay, "refund_amount": refund, "settlement_amount": net, "ad_cost": ad_cost, "cost_ratio": ratio(ad_cost, net)}
 
