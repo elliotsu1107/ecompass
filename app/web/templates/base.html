@@ -16,7 +16,14 @@
     .panel-head h2{margin:0}
     .panel-note{color:var(--muted);font-size:13px}
     .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
-    .kpi-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(31,35,41,.06)}
+    .store-rows{display:grid;gap:16px}
+    .store-row{display:grid;grid-template-columns:minmax(320px,440px) 1fr;gap:16px;align-items:stretch}
+    .kpi-card,.trend-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(31,35,41,.06)}
+    .trend-card h3{margin:0 0 6px;font-size:15px}
+    .ring-caption{display:flex;justify-content:center;gap:10px;font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap}
+    .ring-caption b{color:#1f2329;font-weight:600;font-variant-numeric:tabular-nums}
+    .ring-caption .sep{color:#d0d5dd}
+    @media(max-width:920px){.store-row{grid-template-columns:1fr}}
     .kpi-card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
     .kpi-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
     .kpi-body{display:grid;grid-template-columns:96px 1fr;gap:12px;align-items:center}

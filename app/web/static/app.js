@@ -49,8 +49,9 @@ function createChart(element) {
   return chart;
 }
 
-function ringOption(rate, color) {
+function ringOption(rate, color, hasTarget) {
   const done = Math.max(0, Math.min(Number(rate) || 0, 1)) * 100;
+  const label = hasTarget ? `${done.toFixed(0)}%` : '—';
   return {
     series: [{
       type: 'pie',
@@ -59,12 +60,12 @@ function ringOption(rate, color) {
       labelLine: { show: false },
       data: [
         {
-          value: done,
+          value: hasTarget ? done : 0,
           name: '完成',
           itemStyle: { color },
-          label: { show: true, position: 'center', formatter: `${done.toFixed(0)}%`, fontSize: 18, fontWeight: 700, color: '#1f2329' },
+          label: { show: true, position: 'center', formatter: label, fontSize: 18, fontWeight: 700, color: '#1f2329' },
         },
-        { value: 100 - done, name: '剩余', itemStyle: { color: '#eef1f5' }, label: { show: false } },
+        { value: hasTarget ? 100 - done : 100, name: '剩余', itemStyle: { color: '#eef1f5' }, label: { show: false } },
       ],
     }],
     animation: false,
@@ -151,23 +152,130 @@ function okrOption(rows, nameOf) {
   };
 }
 
-function storeCard(store, index) {
+function storeTrendOption(store) {
+  const rows = store.timeline || [];
+  const color = PALETTE[(Number(store.store_id) || 0) % PALETTE.length];
+  const showLabel = rows.length > 0 && rows.length <= 16;
+  return {
+    tooltip: { trigger: 'axis', valueFormatter: (value) => `¥${fmt(value)}`, textStyle: { fontSize: 12 } },
+    grid: { left: 8, right: 18, top: showLabel ? 26 : 18, bottom: 28, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: rows.map((item) => item.period),
+      boundaryGap: false,
+      axisLine: { lineStyle: { color: '#e5eaf0' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#646a73', fontSize: 12 },
+    },
+    yAxis: {
+      type: 'value',
+      splitLine: { lineStyle: { color: '#f0f2f5' } },
+      axisLabel: {
+        color: '#646a73',
+        fontSize: 12,
+        formatter: (value) => (Math.abs(value) >= 10000 ? `${(value / 10000).toFixed(1)}万` : value),
+      },
+    },
+    series: [{
+      name: '结算销售额',
+      type: 'line',
+      smooth: true,
+      symbol: 'circle',
+      symbolSize: 6,
+      lineStyle: { width: 2.5, color },
+      itemStyle: { color },
+      label: { show: showLabel, position: 'top', color: '#1f2329', fontSize: 11, formatter: (p) => fmt(p.value) },
+      areaStyle: { color, opacity: 0.05 },
+      data: rows.map((item) => Number(Number(item.settlement_amount).toFixed(2))),
+    }],
+    animation: false,
+  };
+}
+
+function categoryOption(group, categoryNames, color) {
+  const rows = group.rows || [];
+  const axisColor = '#646a73';
+  return {
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' }, textStyle: { fontSize: 12 } },
+    legend: { bottom: 0, itemHeight: 8, itemWidth: 14, textStyle: { color: axisColor, fontSize: 12 } },
+    grid: { left: 8, right: 8, top: 24, bottom: 44, containLabel: true },
+    xAxis: {
+      type: 'category',
+      data: rows.map((row) => categoryNames.get(String(row.category_id)) || `类目 ${row.category_id}`),
+      axisLine: { lineStyle: { color: '#e5eaf0' } },
+      axisTick: { show: false },
+      axisLabel: { color: '#1f2329', fontSize: 12, interval: 0, rotate: rows.length > 6 ? 24 : 0 },
+    },
+    yAxis: [
+      {
+        type: 'value',
+        splitLine: { lineStyle: { color: '#f0f2f5' } },
+        axisLabel: {
+          color: axisColor,
+          fontSize: 12,
+          formatter: (value) => (Math.abs(value) >= 10000 ? `${(value / 10000).toFixed(1)}万` : value),
+        },
+      },
+      {
+        type: 'value',
+        splitLine: { show: false },
+        axisLabel: { color: axisColor, fontSize: 12, formatter: (value) => `${value}%` },
+      },
+    ],
+    series: [
+      {
+        name: '结算销售额',
+        type: 'bar',
+        barMaxWidth: 26,
+        itemStyle: { color, borderRadius: [4, 4, 0, 0] },
+        label: { show: rows.length <= 12, position: 'top', color: '#1f2329', fontSize: 11, formatter: (p) => fmt(p.value) },
+        data: rows.map((row) => Number(Number(row.settlement_amount).toFixed(2))),
+      },
+      {
+        name: '推广费比',
+        type: 'line',
+        yAxisIndex: 1,
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 6,
+        lineStyle: { width: 2, color: '#21c3f3' },
+        itemStyle: { color: '#21c3f3' },
+        data: rows.map((row) => row.cost_ratio == null ? null : Number((row.cost_ratio * 100).toFixed(2))),
+      },
+    ],
+    animation: false,
+  };
+}
+
+function storeRow(store, index) {
   const summary = store.summary || {};
   const target = Number(summary.target_amount || 0);
   const color = PALETTE[index % PALETTE.length];
-  return `<article class="kpi-card">
-    <h3><span class="kpi-dot" style="background:${color}"></span>${store.store_name || `店铺 ${store.store_id}`}</h3>
-    <div class="kpi-body">
-      <div class="kpi-ring" data-ring="${index}"></div>
-      <div class="kpi-figures">
-        <div class="kpi-main">${money(summary.settlement_amount)}</div>
-        <div class="kpi-line"><span>支付</span><b>${money(summary.pay_amount)}</b></div>
-        <div class="kpi-line"><span>退款</span><b>${money(summary.refund_amount)}</b></div>
-        <div class="kpi-line"><span>推广费比</span><b>${percent(summary.cost_ratio)}</b></div>
-        <div class="kpi-line"><span>目标</span><b>${target ? money(target) : '未设置'}</b></div>
+  const timeline = store.timeline || [];
+  const trendBody = timeline.length
+    ? `<div class="chart" data-store-trend="${index}"></div>`
+    : '<p class="empty-note">所选区间暂无结算数据</p>';
+  return `<div class="store-row">
+    <article class="kpi-card">
+      <h3><span class="kpi-dot" style="background:${color}"></span>${store.store_name || `店铺 ${store.store_id}`}</h3>
+      <div class="kpi-body">
+        <div>
+          <div class="kpi-ring" data-ring="${index}"></div>
+          <div class="ring-caption"><span>当前 <b>${money(summary.settlement_amount)}</b></span><span class="sep">|</span><span>目标 <b>${target ? money(target) : '—'}</b></span></div>
+        </div>
+        <div class="kpi-figures">
+          <div class="kpi-line"><span>支付金额</span><b>${money(summary.pay_amount)}</b></div>
+          <div class="kpi-line"><span>退款金额</span><b>${money(summary.refund_amount)}</b></div>
+          <div class="kpi-line"><span>推广费比</span><b>${percent(summary.cost_ratio)}</b></div>
+          <div class="kpi-line"><span>目标完成</span><b>${target ? percent(Number(summary.settlement_amount || 0) / target) : '未设置'}</b></div>
+        </div>
       </div>
-    </div>
-  </article>`;
+    </article>
+    <article class="trend-card">
+      <h3>${store.store_name || `店铺 ${store.store_id}`} 结算额趋势</h3>
+      ${trendBody}
+    </article>
+  </div>`;
 }
 
 function categoryColumn(storeName, rows, categoryNames) {
@@ -177,14 +285,10 @@ function categoryColumn(storeName, rows, categoryNames) {
     <td class="num">${percent(row.cost_ratio)}</td>
     <td class="num">${money(row.target_amount)}</td>
   </tr>`).join('');
-  const total = rows.reduce((sum, row) => sum + Number(row.settlement_amount || 0), 0);
-  return `<div class="col-card">
-    <div class="col-title"><span>${storeName}</span><span>合计 ${money(total)}</span></div>
-    <table class="data-table">
-      <thead><tr><th>类目</th><th class="num">结算销售额</th><th class="num">推广费比</th><th class="num">目标</th></tr></thead>
-      <tbody>${body || '<tr><td colspan="4" class="empty-note">暂无类目数据</td></tr>'}</tbody>
-    </table>
-  </div>`;
+  return `<table class="data-table">
+    <thead><tr><th>类目</th><th class="num">结算销售额</th><th class="num">推广费比</th><th class="num">目标</th></tr></thead>
+    <tbody>${body || '<tr><td colspan="4" class="empty-note">暂无类目数据</td></tr>'}</tbody>
+  </table>`;
 }
 
 function fillStoreOptions(options) {
@@ -204,15 +308,24 @@ function render(data, periodText, storeLabel) {
   const categoryNames = new Map((data.dimensions?.categories || []).map((item) => [String(item.id), item.name]));
   const operatorNames = new Map((data.dimensions?.operators || []).map((item) => [String(item.id), item.name]));
   const stores = data.stores || [];
-  const categoryColumns = (data.categories || []).map((group) => {
+  const categoryGroups = data.categories || [];
+  const categoryBlocks = categoryGroups.map((group, index) => {
     const name = stores.find((store) => String(store.store_id) === String(group.store_id))?.store_name
       || `店铺 ${group.store_id}`;
-    return categoryColumn(name, group.rows || [], categoryNames);
+    const rows = group.rows || [];
+    const chartBody = rows.length
+      ? `<div class="chart chart-sm" data-category-chart="${index}"></div>`
+      : '';
+    return `<div class="col-card">
+      <div class="col-title"><span>${name} · 品类结算额及费比</span><span>合计 ${money(rows.reduce((sum, row) => sum + Number(row.settlement_amount || 0), 0))}</span></div>
+      ${chartBody}
+      ${categoryColumn(name, rows, categoryNames)}
+    </div>`;
   }).join('');
 
   app.innerHTML = `<div class="panel">
       <div class="panel-head"><h2>店铺经营概览</h2><span class="panel-note">${periodText}</span></div>
-      <div class="metric-grid">${stores.map(storeCard).join('') || '<p class="empty-note">暂无店铺数据</p>'}</div>
+      <div class="store-rows">${stores.map(storeRow).join('') || '<p class="empty-note">暂无店铺数据，请先在后台建立店铺并导入报表。</p>'}</div>
     </div>
     <div class="panel">
       <div class="panel-head"><h2>结算趋势</h2><span class="panel-note">按${granularity.value === 'month' ? '月' : '日'}统计</span></div>
@@ -222,7 +335,7 @@ function render(data, periodText, storeLabel) {
       <div class="panel-head"><h2>类目明细</h2><span class="panel-note">按店铺并列对比</span></div>
       <details class="fold" open>
         <summary>展开 / 收起类目明细</summary>
-        <div class="fold-body"><div class="two-col">${categoryColumns || '<p class="empty-note">暂无类目数据</p>'}</div></div>
+        <div class="fold-body"><div class="two-col">${categoryBlocks || '<p class="empty-note">暂无类目数据</p>'}</div></div>
       </details>
     </div>
     <div class="panel">
@@ -238,7 +351,17 @@ function render(data, periodText, storeLabel) {
     const target = Number(summary.target_amount || 0);
     const rate = target ? Number(summary.settlement_amount || 0) / target : 0;
     const chart = createChart(element);
-    if (chart) chart.setOption(ringOption(rate, PALETTE[Number(element.dataset.ring) % PALETTE.length]));
+    if (chart) chart.setOption(ringOption(rate, PALETTE[Number(element.dataset.ring) % PALETTE.length], target > 0));
+  });
+  app.querySelectorAll('[data-store-trend]').forEach((element) => {
+    const store = stores[Number(element.dataset.storeTrend)];
+    const chart = createChart(element);
+    if (store && chart) chart.setOption(storeTrendOption(store));
+  });
+  app.querySelectorAll('[data-category-chart]').forEach((element) => {
+    const group = categoryGroups[Number(element.dataset.categoryChart)];
+    const chart = createChart(element);
+    if (group && chart) chart.setOption(categoryOption(group, categoryNames, PALETTE[Number(element.dataset.categoryChart) % PALETTE.length]));
   });
   const trendChart = createChart(document.getElementById('trend-chart'));
   if (trendChart) trendChart.setOption(trendOption(stores));
