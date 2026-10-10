@@ -11,7 +11,8 @@ from fastapi.templating import Jinja2Templates
 from app.admin.dims import DimensionStore, DuplicateNameError
 from app.admin.products import ProductStore
 from app.admin.targets import TargetStore
-from app.auth import admin_required, authenticate_admin, require_admin
+from app.auth import admin_required, current_admin, credentials, secret_key
+from app.security import SESSION_TTL_SECONDS, PasswordError, issue_session
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -51,10 +52,17 @@ def login_page(request: Request):
 
 @router.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    user = authenticate_admin(username, password, getattr(request.app.state, "admins", {"admin": "admin"}))
-    if not user: return templates.TemplateResponse(request, "login.html", {"error": "账号或密码错误"}, status_code=401)
+    store = credentials(request)
+    if store is None or not store.verify(username, password):
+        return templates.TemplateResponse(request, "login.html", {"error": "账号或密码错误"}, status_code=401)
     response = RedirectResponse("/admin", status_code=303)
-    response.set_cookie("admin_session", user, httponly=True, samesite="lax")
+    response.set_cookie(
+        "admin_session",
+        issue_session(username, secret_key(request)),
+        httponly=True,
+        samesite="lax",
+        max_age=SESSION_TTL_SECONDS,
+    )
     return response
 
 
@@ -67,10 +75,32 @@ def logout():
 
 @router.get("/admin", response_class=HTMLResponse)
 def admin_page(request: Request, admin_session: str | None = Cookie(default=None)):
-    admins = getattr(request.app.state, "admins", {"admin": "admin"})
-    if not require_admin(admin_session, admins):
+    if not current_admin(request, admin_session):
         return RedirectResponse("/login", status_code=303)
     return templates.TemplateResponse(request, "admin.html")
+
+
+@router.post("/api/admin/password")
+def change_password(request: Request, payload: dict, admin: str = Depends(admin_required)):
+    current = str(payload.get("current_password") or "")
+    new_password = str(payload.get("new_password") or "")
+    confirm_password = str(payload.get("confirm_password") or "")
+    if not current or not new_password or not confirm_password:
+        raise HTTPException(status_code=400, detail="缺少必填项：原密码、新密码、确认新密码")
+    store = credentials(request)
+    if store is None:
+        raise HTTPException(status_code=500, detail="凭据存储未初始化")
+    if not store.verify(admin, current):
+        raise HTTPException(status_code=400, detail="原密码不正确")
+    if new_password != confirm_password:
+        raise HTTPException(status_code=400, detail="两次输入的新密码不一致")
+    if new_password == current:
+        raise HTTPException(status_code=400, detail="新密码不能与当前密码相同")
+    try:
+        store.set_password(admin, new_password)
+    except PasswordError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"ok": True}
 
 
 @router.post("/api/admin/clear/{scope}")
@@ -204,6 +234,26 @@ def update_product(store_id: int, product_id: str, values: dict, request: Reques
     finally:
         connection.close()
     return {"ok": True}
+
+@router.post("/api/admin/products/batch-update")
+def batch_update_products(request: Request, payload: dict, _admin: str = Depends(admin_required)):
+    items = payload.get("items") or []
+    if not items:
+        raise HTTPException(status_code=400, detail="请先选择要修改的商品")
+    months = [str(month) for month in (payload.get("months") or []) if _MONTH.match(str(month))]
+    connection = _connection(request)
+    try:
+        return ProductStore(connection).batch_update(
+            items,
+            payload.get("patch") or {},
+            sync_daily=bool(payload.get("sync_daily")),
+            months=months,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        connection.close()
+
 
 @router.delete("/api/admin/products/{store_id}/{product_id}")
 def delete_product(store_id: int, product_id: str, request: Request, _admin: str = Depends(admin_required)):

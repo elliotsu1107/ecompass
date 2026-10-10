@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .config import Config, project_root
 from .db import connect_db, init_db
+from .security import CredentialStore, ensure_secret_key
 
 
 def create_app(config: Config | None = None) -> FastAPI:
@@ -15,7 +16,8 @@ def create_app(config: Config | None = None) -> FastAPI:
     app.state.config = settings
     app.state.data_dir = settings.data_dir
     app.state.db = lambda: connect_db(settings.db_path)
-    app.state.admins = {"admin": "ecompass123"}
+    app.state.secret_key = ensure_secret_key(settings.data_dir / "secret.key")
+    app.state.credentials = CredentialStore(settings.data_dir / "admin.json")
     static_dir = project_root() / "app" / "web" / "static"
     if static_dir.exists():
         app.mount("/static", StaticFiles(directory=static_dir), name="static")

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,13 +8,7 @@ from fastapi import APIRouter, Cookie, Depends, File, Form, HTTPException, Reque
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from app.auth import admin_required, require_admin
-from app.imports.mapping import (
-    fields_for,
-    load_mapping,
-    save_mapping as save_mapping_profile,
-    suggest_mapping,
-)
+from app.auth import admin_required, current_admin
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -27,9 +20,7 @@ def _db(request):
 
 
 def _is_admin(request: Request, admin_session: str | None) -> bool:
-    return require_admin(
-        admin_session, getattr(request.app.state, "admins", {"admin": "admin"})
-    )
+    return bool(current_admin(request, admin_session))
 
 
 @router.get("/import", response_class=HTMLResponse)
@@ -125,20 +116,19 @@ async def upload(request: Request, file: UploadFile = File(...), store_id: str =
             raise HTTPException(status_code=400, detail="未知报表类型，应为 store、product 或 ad")
         connection = _db(request)
         try:
-            mapping = load_mapping(connection, store_id, file_type, table.headers) or None
             if file_type == "store":
-                stats = ingest(connection, store_id, store_rows=table.rows, mapping=mapping)
+                stats = ingest(connection, store_id, store_rows=table.rows)
             elif file_type == "product":
-                stats = ingest(connection, store_id, product_rows=table.rows, mapping=mapping)
+                stats = ingest(connection, store_id, product_rows=table.rows)
             else:
-                stats = ingest(connection, store_id, ad_rows=table.rows, mapping=mapping)
+                stats = ingest(connection, store_id, ad_rows=table.rows)
             connection.execute("INSERT INTO import_logs (created_at,file_type,file_name,file_sha256,data_date,inserted_rows,updated_rows,skipped_rows,unmatched_rows,archive_path) VALUES (?,?,?,?,?,?,?,?,?,?)", (datetime.now(timezone.utc).isoformat(), file_type, file.filename, digest, table.rows[0].get("日期", table.rows[0].get("统计日期", "")) if table.rows else "", stats["新增"], stats["更新"], stats["跳过"], stats["未匹配"], str(path)))
             connection.commit()
             _trim_import_logs(connection)
             connection.commit()
         finally:
             connection.close()
-        return {"file_name": file.filename, "file_sha256": digest, "store_id": store_id, "file_type": file_type, "path": str(path), "header_row": table.header_row + 1, "rows": len(table.rows), "stats": stats, "headers": list(table.headers), "fields": fields_for(file_type), "mapping": mapping or suggest_mapping(table.headers, file_type)}
+        return {"file_name": file.filename, "file_sha256": digest, "store_id": store_id, "file_type": file_type, "path": str(path), "header_row": table.header_row + 1, "rows": len(table.rows), "stats": stats}
     except HTTPException:
         raise
     except Exception as exc:
@@ -198,38 +188,6 @@ async def upload_product_list(
         "rows": len(table.rows),
         "stats": stats,
     }
-
-
-@router.put("/api/import/mappings")
-def save_mapping(request: Request, payload: dict, _admin: str = Depends(admin_required)):
-    headers = payload.get("headers") or []
-    if not headers:
-        raise HTTPException(status_code=400, detail="缺少表头信息，请重新上传报表")
-    file_type = payload.get("file_type") or ""
-    if file_type not in ("store", "product", "ad"):
-        raise HTTPException(status_code=400, detail="未知报表类型，应为 store、product 或 ad")
-    if payload.get("store_id") in (None, ""):
-        raise HTTPException(status_code=400, detail="缺少店铺")
-    connection = _db(request)
-    try:
-        signature = save_mapping_profile(
-            connection,
-            payload.get("store_id"),
-            file_type,
-            headers,
-            payload.get("mapping") or {},
-            sheet_name=payload.get("sheet_name"),
-            header_row=int(payload.get("header_row") or 1),
-            data_start_row=int(payload.get("data_start_row") or 2),
-            row_filter=payload.get("row_filter"),
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except sqlite3.IntegrityError:
-        raise HTTPException(status_code=400, detail="店铺不存在，请先到管理后台建立店铺") from None
-    finally:
-        connection.close()
-    return {"ok": True, "header_signature": signature}
 
 
 @router.post("/api/import/archive")
