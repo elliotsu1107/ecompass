@@ -251,7 +251,7 @@ function renderProductTabs() {
       selectAll.setAttribute('aria-label', '全选');
       selectHead.append(selectAll);
       headRow.append(selectHead);
-      ['商品 ID', '商品名称', '类目', '运营', '状态', '操作'].forEach((label) => {
+      ['商品 ID', '商品型号', '类目', '运营', '状态', '操作'].forEach((label) => {
         const th = document.createElement('th');
         th.textContent = label;
         headRow.append(th);
@@ -275,7 +275,7 @@ function renderProductTabs() {
         tr.append(actions);
         body.append(tr);
       });
-      table.append(body);
+      table.append(head, body);
       tableBox.append(table);
       selectAll.addEventListener('change', () => {
         body.querySelectorAll('.row-select').forEach((checkbox) => { checkbox.checked = selectAll.checked; });

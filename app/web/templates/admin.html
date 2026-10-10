@@ -47,15 +47,19 @@
     .product-filters { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin:14px 0 4px; padding:12px; background:#f7f9fb; border:1px solid #e2e8ee; border-radius:6px; }
     .filter-item label, .bulk-toolbar label { display:block; margin:0 0 4px; }
     .product-filters select, .product-filters input { min-width:150px; max-width:220px; }
-    .bulk-toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin:10px 0; padding:12px; background:#f7f9fb; border:1px solid #e2e8ee; border-radius:6px; }
+    .bulk-toolbar { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; margin:14px 0 4px; padding:12px; background:#f7f9fb; border:1px solid #e2e8ee; border-radius:6px; }
     .bulk-toolbar select { min-width:160px; max-width:240px; }
     .bulk-toolbar button { margin-top:0; }
-    .sync-option { display:flex; align-items:center; gap:6px; }
+    .bulk-actions { align-self:flex-end; display:flex; gap:8px; }
+    .bulk-actions label { visibility:hidden; }
+    .bulk-actions button { margin:0; }
+    .sync-option { display:flex; align-items:center; gap:6px; min-height:37px; }
     .sync-option input { width:auto; max-width:none; margin:0; }
-    .sync-option label { margin:0; font-weight:600; font-size:14px; }
+    .sync-option label { display:inline; margin:0; font-weight:600; font-size:14px; }
     #bulk-months { display:flex; align-items:center; gap:6px; }
     #bulk-months label { margin:0; }
     #bulk-months input { width:150px; max-width:150px; }
+    #import-form button { margin-top:16px; }
     @media (max-width: 640px) { .scope { columns: 1; } table { font-size: 13px; } .product-filters, .bulk-toolbar { flex-direction:column; align-items:stretch; } }
   </style>
 </head>
@@ -64,7 +68,6 @@
     <h1>电商经营罗盘 · 管理后台</h1>
     <nav>
       <a href="/">运营看板</a>
-      <a href="/import">导入数据</a>
       <form method="post" action="/logout"><button type="submit" class="linkish">退出登录</button></form>
     </nav>
     <p id="global-message" class="message" role="status" aria-live="polite"></p>
@@ -73,6 +76,7 @@
       <button class="tab" type="button" data-tab="stores">店铺</button>
       <button class="tab" type="button" data-tab="categories">类目</button>
       <button class="tab" type="button" data-tab="products">商品</button>
+      <button class="tab" type="button" data-tab="import">导入数据</button>
       <button class="tab" type="button" data-tab="targets">月度目标</button>
       <button class="tab" type="button" data-tab="security">账号安全</button>
       <button class="tab" type="button" data-tab="reset">数据清空</button>
@@ -161,6 +165,42 @@
         </div>
         <button type="submit">新增商品</button>
       </form>
+      <div class="bulk-toolbar">
+        <span id="product-selected-count" class="hint">已选 0 条</span>
+        <span class="filter-item">
+          <label for="bulk-category">批量改为类目</label>
+          <select id="bulk-category"></select>
+        </span>
+        <span class="filter-item">
+          <label for="bulk-operator">批量改为运营</label>
+          <select id="bulk-operator"></select>
+        </span>
+        <span class="filter-item">
+          <label for="bulk-status">批量改为状态</label>
+          <select id="bulk-status">
+            <option value="">不变</option>
+            <option value="active">在架</option>
+            <option value="inactive">下架</option>
+          </select>
+        </span>
+        <span class="filter-item">
+          <span class="sync-option">
+            <input id="bulk-sync-daily" type="checkbox">
+            <label for="bulk-sync-daily">同步更新日报归属</label>
+          </span>
+          <span id="bulk-months" hidden>
+            <label for="bulk-month-start">覆盖月份</label>
+            <input id="bulk-month-start" type="month">
+            <span>至</span>
+            <input id="bulk-month-end" type="month">
+          </span>
+        </span>
+        <span class="filter-item bulk-actions">
+          <label>&nbsp;</label>
+          <button type="button" id="bulk-apply">批量修改</button>
+          <button type="button" class="bulk-delete" data-table="products">删除选中商品</button>
+        </span>
+      </div>
       <div class="product-filters">
         <span class="filter-item">
           <label for="product-filter-category">类目</label>
@@ -184,36 +224,32 @@
         </span>
         <button type="button" id="product-filter-reset">重置筛选</button>
       </div>
-      <div class="bulk-toolbar">
-        <span id="product-selected-count" class="hint">已选 0 条</span>
-        <label for="bulk-category">批量改为类目</label>
-        <select id="bulk-category"></select>
-        <label for="bulk-operator">批量改为运营</label>
-        <select id="bulk-operator"></select>
-        <label for="bulk-status">批量改为状态</label>
-        <select id="bulk-status">
-          <option value="">不变</option>
-          <option value="active">在架</option>
-          <option value="inactive">下架</option>
-        </select>
-        <span class="sync-option">
-          <input id="bulk-sync-daily" type="checkbox">
-          <label for="bulk-sync-daily">同步更新日报归属</label>
-        </span>
-        <span id="bulk-months" hidden>
-          <label for="bulk-month-start">覆盖月份</label>
-          <input id="bulk-month-start" type="month">
-          <span>至</span>
-          <input id="bulk-month-end" type="month">
-        </span>
-        <button type="button" id="bulk-apply">批量修改</button>
-        <button type="button" class="bulk-delete" data-table="products">删除选中商品</button>
-      </div>
       <div id="product-list"></div>
     </section>
 
+    <section data-section="import">
+      <h2>5. 导入数据</h2>
+      <p class="hint">先在「店铺」「商品」标签页建立店铺和商品清单，再导入报表。商品报表和推广报表按商品 ID 匹配类目与运营。</p>
+      <form id="import-form">
+        <label for="store-select">店铺</label>
+        <select id="store-select" name="store_id" required></select>
+        <label for="file-type">报表类型</label>
+        <select id="file-type" name="file_type">
+          <option value="store">店铺数据</option>
+          <option value="product">商品数据</option>
+          <option value="ad">推广数据</option>
+        </select>
+        <label for="file-input">报表文件</label>
+        <input id="file-input" type="file" name="file" required>
+        <button type="submit">上传并导入</button>
+      </form>
+      <div id="result" class="message" role="status" aria-live="polite"></div>
+      <h2 style="margin-top:22px">最近导入记录</h2>
+      <div id="log-list"></div>
+    </section>
+
     <section data-section="targets">
-      <h2>5. 月度目标</h2>
+      <h2>6. 月度目标</h2>
       <p class="hint">店铺目标和类目目标按店铺分别设置，运营目标是两家店铺合计。</p>
       <label for="target-month">目标月份</label>
       <input id="target-month" type="month">
@@ -223,7 +259,7 @@
     </section>
 
     <section data-section="security">
-      <h2>6. 修改密码</h2>
+      <h2>7. 修改密码</h2>
       <p class="hint">密码保存在 data/admin.json，备份 data 目录即可保留。修改后当前登录状态不变。</p>
       <form id="password-form" class="grid">
         <div>
@@ -253,7 +289,7 @@
         <li>产品资料</li>
         <li>店铺、商品和推广日报</li>
         <li>店铺、类目和运营目标</li>
-        <li>导入记录和字段映射</li>
+        <li>导入记录和归档文件</li>
       </ul>
       <div class="scoped-clear-grid">
         <button type="button" class="scoped-clear" data-scope="stores">清空店铺</button>
@@ -276,5 +312,6 @@
     </section>
   </main>
   <script src="/static/admin.js"></script>
+  <script src="/static/import.js"></script>
 </body>
 </html>

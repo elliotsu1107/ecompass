@@ -20,7 +20,7 @@ async function loadStores() {
   if (!body.items.length) {
     const option = document.createElement('option');
     option.value = '';
-    option.textContent = '请先到管理后台新增店铺';
+    option.textContent = '请先在「店铺」标签页新增店铺';
     storeSelect.append(option);
     return;
   }
