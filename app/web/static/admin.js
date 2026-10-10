@@ -187,6 +187,45 @@ function renderDimensions() {
   fillSelect(document.querySelector('#product-operator'), state.operators, (item) => item.id, (item) => item.name, '请选择运营');
   fillSelect(document.querySelector('#product-store'), state.stores, (item) => item.id, (item) => item.name, '请选择店铺');
   fillSelect(document.querySelector('#product-category'), state.categories, (item) => item.id, (item) => `${item.name}（${operatorName(item.operator_id)}）`, '请选择类目');
+
+  fillSelect(document.querySelector('#product-filter-category'), state.categories, (item) => item.id, (item) => item.name, '全部类目');
+  fillSelect(document.querySelector('#product-filter-operator'), state.operators, (item) => item.id, (item) => item.name, '全部运营');
+  fillSelect(document.querySelector('#bulk-category'), state.categories, (item) => item.id, (item) => item.name, '不改变类目');
+  fillSelect(document.querySelector('#bulk-operator'), state.operators, (item) => item.id, (item) => item.name, '不改变运营');
+}
+
+function productStatusLabel(status) {
+  return status === 'inactive' ? '下架' : '在架';
+}
+
+function filteredProducts(storeId) {
+  const keyword = (document.querySelector('#product-filter-keyword')?.value || '').trim().toLowerCase();
+  const categoryId = document.querySelector('#product-filter-category')?.value || '';
+  const operatorId = document.querySelector('#product-filter-operator')?.value || '';
+  const status = document.querySelector('#product-filter-status')?.value || '';
+  return state.products.filter((item) => {
+    if (String(item.store_id) !== String(storeId)) return false;
+    if (categoryId && String(item.category_id) !== String(categoryId)) return false;
+    if (operatorId && String(item.operator_id) !== String(operatorId)) return false;
+    if (status && (item.status || 'active') !== status) return false;
+    if (keyword) {
+      const haystack = `${item.product_id} ${item.name}`.toLowerCase();
+      if (!haystack.includes(keyword)) return false;
+    }
+    return true;
+  });
+}
+
+function selectedProducts() {
+  return [...document.querySelectorAll('.product-row-select:checked')].map((checkbox) => ({
+    store_id: Number(checkbox.dataset.storeId),
+    product_id: checkbox.dataset.productId,
+  }));
+}
+
+function updateSelectedCount() {
+  const label = document.querySelector('#product-selected-count');
+  if (label) label.textContent = `已选 ${selectedProducts().length} 条`;
 }
 
 function renderProductTabs() {
@@ -198,7 +237,7 @@ function renderProductTabs() {
   tabs.className = 'product-store-tabs';
   const tableBox = document.createElement('div');
   const renderStore = (storeId) => {
-    const rows = state.products.filter((item) => String(item.store_id) === String(storeId));
+    const rows = filteredProducts(storeId);
     tableBox.textContent = '';
     const selectedStore = state.stores.find((store) => String(store.id) === String(storeId));
     if (!rows.length) emptyNote(tableBox, `${selectedStore?.name || '所选店铺'}暂无商品`);
@@ -212,7 +251,7 @@ function renderProductTabs() {
       selectAll.setAttribute('aria-label', '全选');
       selectHead.append(selectAll);
       headRow.append(selectHead);
-      ['商品 ID', '商品名称', '店铺', '类目', '运营', '操作'].forEach((label) => {
+      ['商品 ID', '商品名称', '类目', '运营', '状态', '操作'].forEach((label) => {
         const th = document.createElement('th');
         th.textContent = label;
         headRow.append(th);
@@ -230,7 +269,7 @@ function renderProductTabs() {
         checkbox.dataset.productId = item.product_id;
         selectCell.append(checkbox);
         tr.append(selectCell);
-        [item.product_id, item.name, storeName(item.store_id), categoryName(item.category_id), operatorName(item.operator_id)].forEach((value) => tr.append(cell(value)));
+        [item.product_id, item.name, categoryName(item.category_id), operatorName(item.operator_id), productStatusLabel(item.status)].forEach((value) => tr.append(cell(value)));
         const actions = document.createElement('td');
         actions.append(actionButton('编辑', () => editProduct(item)), actionButton('删除', () => removeProduct(item), 'danger'));
         tr.append(actions);
@@ -238,8 +277,15 @@ function renderProductTabs() {
       });
       table.append(body);
       tableBox.append(table);
-      selectAll.addEventListener('change', () => body.querySelectorAll('.row-select').forEach((checkbox) => { checkbox.checked = selectAll.checked; }));
+      selectAll.addEventListener('change', () => {
+        body.querySelectorAll('.row-select').forEach((checkbox) => { checkbox.checked = selectAll.checked; });
+        updateSelectedCount();
+      });
+      body.addEventListener('change', (event) => {
+        if (event.target.classList.contains('product-row-select')) updateSelectedCount();
+      });
     }
+    updateSelectedCount();
     [...tabs.children].forEach((button) => button.classList.toggle('active', button.dataset.storeId === String(storeId)));
   };
   state.stores.forEach((store, index) => {
@@ -529,6 +575,89 @@ if (monthInput) {
   });
 }
 
+function monthsBetween(start, end) {
+  if (!start || !end) return [];
+  const [startYear, startMonth] = start.split('-').map(Number);
+  const [endYear, endMonth] = end.split('-').map(Number);
+  const months = [];
+  let cursor = startYear * 12 + startMonth;
+  const last = endYear * 12 + endMonth;
+  while (cursor <= last) {
+    const year = Math.floor((cursor - 1) / 12);
+    months.push(`${year}-${String(cursor - year * 12).padStart(2, '0')}`);
+    cursor += 1;
+  }
+  return months;
+}
+
+function defaultMonthRange() {
+  const now = new Date();
+  const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  return [month, month];
+}
+
+const syncDailyToggle = document.querySelector('#bulk-sync-daily');
+const monthRange = document.querySelector('#bulk-months');
+const monthStartInput = document.querySelector('#bulk-month-start');
+const monthEndInput = document.querySelector('#bulk-month-end');
+
+if (syncDailyToggle && monthRange && monthStartInput && monthEndInput) {
+  const [defaultStart, defaultEnd] = defaultMonthRange();
+  monthStartInput.value = defaultStart;
+  monthEndInput.value = defaultEnd;
+  syncDailyToggle.addEventListener('change', () => { monthRange.hidden = !syncDailyToggle.checked; });
+}
+
+async function applyBulkUpdate() {
+  const selected = selectedProducts();
+  if (!selected.length) return notify('请先选择要修改的商品', 'error');
+  const patch = {};
+  const category = document.querySelector('#bulk-category')?.value;
+  const operator = document.querySelector('#bulk-operator')?.value;
+  const status = document.querySelector('#bulk-status')?.value;
+  if (category) patch.category_id = Number(category);
+  if (operator) patch.operator_id = Number(operator);
+  if (status) patch.status = status;
+  if (!Object.keys(patch).length) return notify('请选择要修改的类目、运营或状态', 'error');
+  const syncDaily = Boolean(syncDailyToggle?.checked);
+  const months = syncDaily ? monthsBetween(monthStartInput?.value, monthEndInput?.value) : [];
+  if (syncDaily && !months.length) return notify('请选择要覆盖的月份区间', 'error');
+  const confirmText = syncDaily
+    ? `确定修改 ${selected.length} 条商品，并把 ${months[0]} 至 ${months[months.length - 1]}（共 ${months.length} 个月）的日报归属一并覆盖吗？此操作不可撤销。`
+    : `确定修改 ${selected.length} 条商品吗？日报归属不会变化。`;
+  if (!window.confirm(confirmText)) return;
+  try {
+    const result = await api('/api/admin/products/batch-update', {
+      method: 'POST',
+      body: JSON.stringify({ items: selected, patch, sync_daily: syncDaily, months }),
+    });
+    await loadDimensions();
+    await loadTargets();
+    const failed = result.failed || [];
+    const detail = syncDaily ? `，同步日报 ${result.daily_rows} 行` : '';
+    notify(failed.length
+      ? `已修改 ${result.updated} 条，失败 ${failed.length} 条：${failed.map((item) => item.reason).join('；')}${detail}`
+      : `已修改 ${result.updated} 条${detail}`, failed.length ? 'error' : 'success');
+  } catch (error) {
+    notify(`批量修改失败：${error.message}`, 'error');
+  }
+}
+
+const bulkApplyButton = document.querySelector('#bulk-apply');
+if (bulkApplyButton) bulkApplyButton.addEventListener('click', applyBulkUpdate);
+
+document.querySelectorAll('#product-filter-category, #product-filter-operator, #product-filter-status').forEach((select) => {
+  select.addEventListener('change', renderProductTabs);
+});
+document.querySelector('#product-filter-keyword')?.addEventListener('input', renderProductTabs);
+document.querySelector('#product-filter-reset')?.addEventListener('click', () => {
+  ['#product-filter-category', '#product-filter-operator', '#product-filter-status', '#product-filter-keyword'].forEach((selector) => {
+    const element = document.querySelector(selector);
+    if (element) element.value = '';
+  });
+  renderProductTabs();
+});
+
 loadDimensions()
   .then(() => loadTargets())
   .catch((error) => notify(`读取资料失败：${error.message}`, 'error'));
@@ -586,6 +715,39 @@ document.querySelectorAll('.scoped-clear').forEach((button) => {
 });
 
 
+const passwordForm = document.querySelector('#password-form');
+const passwordMessage = document.querySelector('#password-message');
+
+if (passwordForm && passwordMessage) {
+  passwordForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = passwordForm.querySelector('button');
+    button.disabled = true;
+    passwordMessage.className = 'message';
+    passwordMessage.textContent = '正在修改密码...';
+    try {
+      const data = new FormData(passwordForm);
+      await api('/api/admin/password', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: data.get('current_password'),
+          new_password: data.get('new_password'),
+          confirm_password: data.get('confirm_password'),
+        }),
+      });
+      passwordForm.reset();
+      passwordMessage.className = 'message success';
+      passwordMessage.textContent = '密码已修改，下次登录请使用新密码。';
+    } catch (error) {
+      passwordMessage.className = 'message error';
+      passwordMessage.textContent = `修改失败：${error.message}`;
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
+const resetForm = document.querySelector('#reset-form');
 const resetMessage = document.querySelector('#reset-message');
 
 function formatCounts(counts) {

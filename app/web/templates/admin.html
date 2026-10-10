@@ -44,7 +44,19 @@
     .product-store-tabs { display:flex; gap:6px; flex-wrap:wrap; margin:12px 0; }
     .product-store-tab { background:#f0f4f8; color:#145da0; border:1px solid #cbd5e1; padding:6px 10px; border-radius:4px; cursor:pointer; }
     .product-store-tab.active { background:#145da0; color:#fff; }
-    @media (max-width: 640px) { .scope { columns: 1; } table { font-size: 13px; } }
+    .product-filters { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin:14px 0 4px; padding:12px; background:#f7f9fb; border:1px solid #e2e8ee; border-radius:6px; }
+    .filter-item label, .bulk-toolbar label { display:block; margin:0 0 4px; }
+    .product-filters select, .product-filters input { min-width:150px; max-width:220px; }
+    .bulk-toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; margin:10px 0; padding:12px; background:#f7f9fb; border:1px solid #e2e8ee; border-radius:6px; }
+    .bulk-toolbar select { min-width:160px; max-width:240px; }
+    .bulk-toolbar button { margin-top:0; }
+    .sync-option { display:flex; align-items:center; gap:6px; }
+    .sync-option input { width:auto; max-width:none; margin:0; }
+    .sync-option label { margin:0; font-weight:600; font-size:14px; }
+    #bulk-months { display:flex; align-items:center; gap:6px; }
+    #bulk-months label { margin:0; }
+    #bulk-months input { width:150px; max-width:150px; }
+    @media (max-width: 640px) { .scope { columns: 1; } table { font-size: 13px; } .product-filters, .bulk-toolbar { flex-direction:column; align-items:stretch; } }
   </style>
 </head>
 <body>
@@ -62,6 +74,7 @@
       <button class="tab" type="button" data-tab="categories">类目</button>
       <button class="tab" type="button" data-tab="products">商品</button>
       <button class="tab" type="button" data-tab="targets">月度目标</button>
+      <button class="tab" type="button" data-tab="security">账号安全</button>
       <button class="tab" type="button" data-tab="reset">数据清空</button>
     </div>
 
@@ -148,7 +161,54 @@
         </div>
         <button type="submit">新增商品</button>
       </form>
-      <div class="bulk-toolbar"><button type="button" class="bulk-delete" data-table="products">删除当前店铺选中商品</button></div>
+      <div class="product-filters">
+        <span class="filter-item">
+          <label for="product-filter-category">类目</label>
+          <select id="product-filter-category"></select>
+        </span>
+        <span class="filter-item">
+          <label for="product-filter-operator">运营</label>
+          <select id="product-filter-operator"></select>
+        </span>
+        <span class="filter-item">
+          <label for="product-filter-status">状态</label>
+          <select id="product-filter-status">
+            <option value="">全部</option>
+            <option value="active">在架</option>
+            <option value="inactive">下架</option>
+          </select>
+        </span>
+        <span class="filter-item">
+          <label for="product-filter-keyword">关键词</label>
+          <input id="product-filter-keyword" placeholder="商品 ID 或名称" autocomplete="off">
+        </span>
+        <button type="button" id="product-filter-reset">重置筛选</button>
+      </div>
+      <div class="bulk-toolbar">
+        <span id="product-selected-count" class="hint">已选 0 条</span>
+        <label for="bulk-category">批量改为类目</label>
+        <select id="bulk-category"></select>
+        <label for="bulk-operator">批量改为运营</label>
+        <select id="bulk-operator"></select>
+        <label for="bulk-status">批量改为状态</label>
+        <select id="bulk-status">
+          <option value="">不变</option>
+          <option value="active">在架</option>
+          <option value="inactive">下架</option>
+        </select>
+        <span class="sync-option">
+          <input id="bulk-sync-daily" type="checkbox">
+          <label for="bulk-sync-daily">同步更新日报归属</label>
+        </span>
+        <span id="bulk-months" hidden>
+          <label for="bulk-month-start">覆盖月份</label>
+          <input id="bulk-month-start" type="month">
+          <span>至</span>
+          <input id="bulk-month-end" type="month">
+        </span>
+        <button type="button" id="bulk-apply">批量修改</button>
+        <button type="button" class="bulk-delete" data-table="products">删除选中商品</button>
+      </div>
       <div id="product-list"></div>
     </section>
 
@@ -160,6 +220,28 @@
       <div id="target-store-list"></div>
       <div id="target-category-list"></div>
       <div id="target-operator-list"></div>
+    </section>
+
+    <section data-section="security">
+      <h2>6. 修改密码</h2>
+      <p class="hint">密码保存在 data/admin.json，备份 data 目录即可保留。修改后当前登录状态不变。</p>
+      <form id="password-form" class="grid">
+        <div>
+          <label for="current-password">当前密码</label>
+          <input id="current-password" name="current_password" type="password" required autocomplete="current-password">
+        </div>
+        <div>
+          <label for="new-password">新密码</label>
+          <input id="new-password" name="new_password" type="password" required autocomplete="new-password">
+        </div>
+        <div>
+          <label for="confirm-password">确认新密码</label>
+          <input id="confirm-password" name="confirm_password" type="password" required autocomplete="new-password">
+        </div>
+        <button type="submit">修改密码</button>
+      </form>
+      <div id="password-message" class="message" role="status" aria-live="polite"></div>
+      <p class="hint">新密码至少 8 位，且需同时包含字母和数字，不能与当前密码相同。</p>
     </section>
 
     <section class="danger-zone" data-section="reset" aria-labelledby="reset-title">
